@@ -123,6 +123,31 @@ export default function ConnectDocs() {
 
       {/* Content */}
       <div className="flex-1 min-w-0 max-w-3xl space-y-12">
+        {/* Quick Start Callout */}
+        <div className="p-5 bg-accent-primary/8 border border-accent-primary/25 rounded-2xl flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent-primary">
+                ⚡ Recommended
+              </span>
+            </div>
+            <h3 className="text-base font-bold text-text-primary mb-1">
+              Connect in one command
+            </h3>
+            <p className="text-sm text-text-secondary leading-relaxed mb-3">
+              Run this in your project root. The CLI will detect your language, write your credentials,
+              drop the bootstrap script, and patch your start command — all interactively.
+            </p>
+            <CodeBlock>{`npx @env-manager/cli init`}</CodeBlock>
+            <p className="text-xs text-text-muted mt-2">
+              Or with flags to skip prompts:{" "}
+              <code className="font-mono text-accent-secondary">
+                npx @env-manager/cli init --project envp_xxx --token envt_yyy
+              </code>
+            </p>
+          </div>
+        </div>
+
         {/* Overview */}
         <section id="overview">
           <h2 className="text-2xl font-bold text-text-primary mb-3">Connect Your Project</h2>

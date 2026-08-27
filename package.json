@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node env-manager.js && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "env-manager": "node env-manager.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
