@@ -3,12 +3,16 @@ import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import { verifyToken } from "@/lib/crypto";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  logger.info("get-env", "Env fetch request", { ip });
+
   try {
-    const ip = getClientIp(request);
     const rl = rateLimit(`get-env:${ip}`, "get-env");
     if (!rl.success) {
+      logger.warn("get-env", "Rate limited", { ip });
       return new NextResponse("Too many requests.", { status: 429 });
     }
 
@@ -16,29 +20,36 @@ export async function GET(request: NextRequest) {
     const token = request.headers.get("x-env-manager-token");
 
     if (!projectId || !token) {
+      logger.warn("get-env", "Missing required headers", { hasProjectId: !!projectId, hasToken: !!token });
       return new NextResponse("Missing required headers.", { status: 400 });
     }
 
     if (!projectId.startsWith("envp_") || !token.startsWith("envt_")) {
-      // Generic error to prevent enumeration
+      logger.warn("get-env", "Invalid credential format", { projectIdPrefix: projectId.substring(0, 5) });
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
+    logger.info("get-env", "Connecting to database...");
     await dbConnect();
 
+    logger.info("get-env", "Looking up project", { projectId });
     const project = await Project.findOne({ projectId }).select(
       "data tokenHash"
     );
 
     if (!project) {
-      // Same error message to prevent project ID enumeration
+      logger.warn("get-env", "Project not found", { projectId });
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
+    logger.info("get-env", "Verifying token...", { projectId });
     const tokenValid = verifyToken(token, project.tokenHash);
     if (!tokenValid) {
+      logger.warn("get-env", "Invalid token for project", { projectId });
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
+
+    logger.info("get-env", "Token verified, returning env data", { projectId, dataLength: project.data.length });
 
     return new NextResponse(project.data, {
       status: 200,
@@ -48,7 +59,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("get-env error:", error);
+    logger.error("get-env", "Failed to fetch env", { error: (error as Error).message });
     return new NextResponse("Internal server error.", { status: 500 });
   }
 }

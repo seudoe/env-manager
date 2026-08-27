@@ -2,22 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import { checkProjectPermission } from "@/lib/permissions";
+import { logger } from "@/lib/logger";
 
 // GET — get project details
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
+  logger.info("projects/[id]", "Get project details", { projectId });
+
   try {
-    const { projectId } = await params;
     const perm = await checkProjectPermission(projectId, "viewer");
     if (!perm.allowed) {
+      logger.warn("projects/[id]", "Access denied", { projectId, userId: perm.userId, role: perm.role });
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 
     await dbConnect();
+    logger.info("projects/[id]", "Fetching project from database", { projectId });
     const project = await Project.findOne({ projectId });
     if (!project) {
+      logger.warn("projects/[id]", "Project not found", { projectId });
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
@@ -30,14 +36,14 @@ export async function GET(
       updatedAt: project.updatedAt,
     };
 
-    // Only owner can see token/settings
     if (perm.role === "owner") {
       response.token = project.token;
     }
 
+    logger.info("projects/[id]", "Project details returned", { projectId, role: perm.role });
     return NextResponse.json({ project: response });
   } catch (error) {
-    console.error("Get project error:", error);
+    logger.error("projects/[id]", "Failed to get project", { projectId, error: (error as Error).message });
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
@@ -47,19 +53,24 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
+  logger.info("projects/[id]", "Rename project request", { projectId });
+
   try {
-    const { projectId } = await params;
     const perm = await checkProjectPermission(projectId, "owner");
     if (!perm.allowed) {
+      logger.warn("projects/[id]", "Rename denied — not owner", { projectId, userId: perm.userId, role: perm.role });
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 
     const { projectName } = await request.json();
     if (!projectName || typeof projectName !== "string" || projectName.trim().length === 0) {
+      logger.warn("projects/[id]", "Invalid project name for rename", { projectId });
       return NextResponse.json({ error: "Project name is required." }, { status: 400 });
     }
 
     await dbConnect();
+    logger.info("projects/[id]", "Renaming project", { projectId, newName: projectName.trim() });
     const project = await Project.findOneAndUpdate(
       { projectId },
       { projectName: projectName.trim() },
@@ -67,9 +78,11 @@ export async function PATCH(
     );
 
     if (!project) {
+      logger.warn("projects/[id]", "Project not found for rename", { projectId });
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
+    logger.info("projects/[id]", "Project renamed successfully", { projectId, newName: project.projectName });
     return NextResponse.json({
       project: {
         projectId: project.projectId,
@@ -77,7 +90,7 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    console.error("Rename project error:", error);
+    logger.error("projects/[id]", "Failed to rename project", { projectId, error: (error as Error).message });
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
@@ -87,22 +100,28 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
+  const { projectId } = await params;
+  logger.info("projects/[id]", "Delete project request", { projectId });
+
   try {
-    const { projectId } = await params;
     const perm = await checkProjectPermission(projectId, "owner");
     if (!perm.allowed) {
+      logger.warn("projects/[id]", "Delete denied — not owner", { projectId, userId: perm.userId, role: perm.role });
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 
     await dbConnect();
+    logger.info("projects/[id]", "Deleting project from database", { projectId });
     const project = await Project.findOneAndDelete({ projectId });
     if (!project) {
+      logger.warn("projects/[id]", "Project not found for deletion", { projectId });
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
+    logger.info("projects/[id]", "Project deleted successfully", { projectId, projectName: project.projectName });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Delete project error:", error);
+    logger.error("projects/[id]", "Failed to delete project", { projectId, error: (error as Error).message });
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
   }
 }
