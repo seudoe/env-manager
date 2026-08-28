@@ -103,7 +103,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={savingUsername || username === user?.username}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-accent-primary to-accent-secondary text-white hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-semibold rounded-[6px] bg-accent-primary text-text-inverse hover:opacity-90 transition-opacity duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {savingUsername ? "Saving..." : "Update Username"}
           </button>
@@ -157,7 +157,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={savingPassword || !currentPassword || !newPassword}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-accent-primary to-accent-secondary text-white hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-semibold rounded-[6px] bg-accent-primary text-text-inverse hover:opacity-90 transition-opacity duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {savingPassword ? "Saving..." : "Update Password"}
           </button>

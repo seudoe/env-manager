@@ -142,7 +142,7 @@ export default function ContributorsPage({
         {isOwner && (
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-accent-primary to-accent-secondary text-white hover:opacity-90 transition-all"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-accent-primary text-text-inverse hover:opacity-90 transition-all"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
@@ -179,7 +179,7 @@ export default function ContributorsPage({
               <tr className="border-b border-border-subtle/50">
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-primary to-accent-secondary flex items-center justify-center text-white text-xs font-bold">
+                    <div className="w-8 h-8 rounded-full bg-accent-primary/15 border border-accent-primary/20 flex items-center justify-center text-accent-primary text-xs font-bold">
                       {owner.username.charAt(0).toUpperCase()}
                     </div>
                     <span className="text-sm font-medium text-text-primary">{owner.username}</span>
@@ -295,7 +295,7 @@ export default function ContributorsPage({
             <button
               type="submit"
               disabled={adding}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-accent-primary to-accent-secondary text-white hover:opacity-90 transition-all disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-accent-primary text-text-inverse hover:opacity-90 transition-all disabled:opacity-50"
             >
               {adding ? "Adding..." : "Add Contributor"}
             </button>

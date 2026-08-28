@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node env-manager.js && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "env-manager": "node env-manager.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "geist": "^1.7.2",
     "jose": "^6.2.10",
     "mongoose": "^9.9.4",
     "next": "16.3.3",
