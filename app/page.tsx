@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import Modal from "@/components/ui/Modal";
 
 const LOGO_URL = "/logo.png";
 
@@ -150,7 +152,81 @@ function TerminalWindow() {
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
+  const [creatingTemp, setCreatingTemp] = useState(false);
+  const [showOpenModal, setShowOpenModal] = useState(false);
+  const [openTempId, setOpenTempId] = useState("");
+  const [openTempToken, setOpenTempToken] = useState("");
+  const [openingTemp, setOpeningTemp] = useState(false);
+  const [openError, setOpenError] = useState("");
+  const router = useRouter();
+
   useEffect(() => setMounted(true), []);
+
+  const handleCreateTemp = async () => {
+    setCreatingTemp(true);
+    try {
+      const res = await fetch("/api/projects/temp", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/project-temp/${data.projectId}?token=${data.token}`);
+      } else {
+        alert("Failed to create temporary project.");
+      }
+    } catch {
+      alert("Something went wrong.");
+    } finally {
+      setCreatingTemp(false);
+    }
+  };
+
+  const handleOpenTemp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOpenError("");
+    const pid = openTempId.trim();
+    const ptoken = openTempToken.trim();
+    
+    if (!pid || !ptoken) return;
+    
+    setOpeningTemp(true);
+    try {
+      const res = await fetch(`/api/projects/${pid}`, {
+        headers: { "x-env-manager-token": ptoken }
+      });
+      if (res.ok) {
+        router.push(`/project-temp/${pid}?token=${ptoken}`);
+      } else {
+        const data = await res.json();
+        setOpenError(data.error || "Invalid credentials.");
+      }
+    } catch {
+      setOpenError("Network error. Try again.");
+    } finally {
+      setOpeningTemp(false);
+    }
+  };
+
+  const handlePasteParse = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const idMatch = val.match(/ENV_MANAGER_PROJECTID\s*=\s*(envpt_[a-zA-Z0-9]+)/);
+    const tokenMatch = val.match(/ENV_MANAGER_TOKEN\s*=\s*(envt_[a-zA-Z0-9]+)/);
+    
+    let found = false;
+    if (idMatch) {
+      setOpenTempId(idMatch[1]);
+      found = true;
+    }
+    if (tokenMatch) {
+      setOpenTempToken(tokenMatch[1]);
+      found = true;
+    }
+
+    if (found) {
+      setOpenError("");
+    }
+    
+    // Clear textarea after parsing
+    setTimeout(() => { e.target.value = ""; }, 50);
+  };
 
   return (
     <div className="min-h-[100dvh] bg-bg-primary text-text-primary font-sans overflow-x-hidden">
@@ -201,13 +277,29 @@ export default function LandingPage() {
               Centralize, version, and sync environment variables across your entire team — without touching a single line of app code.
             </p>
 
-            <div className="flex items-center gap-3 mb-12 fade-up stagger-4">
+            <div className="flex items-center gap-3 mb-6 fade-up stagger-4">
               <Link href="/register" className="px-4 py-2.5 text-sm font-medium rounded-[6px] bg-accent-primary text-text-inverse hover:opacity-90 active:translate-y-[-1px] transition-all duration-150">
                 Start for Free
               </Link>
               <Link href="/connect" className="px-4 py-2.5 text-sm font-medium rounded-[6px] border border-border-default text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all duration-150">
                 View Docs →
               </Link>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-12 fade-up stagger-4">
+              <button 
+                onClick={handleCreateTemp}
+                disabled={creatingTemp}
+                className="px-4 py-2 text-xs font-medium rounded-[6px] bg-bg-tertiary text-text-secondary border border-border-default hover:bg-bg-hover hover:text-text-primary transition-all duration-150 flex items-center gap-2"
+              >
+                {creatingTemp ? "Creating..." : "Create a temporary project"}
+              </button>
+              <button 
+                onClick={() => setShowOpenModal(true)}
+                className="px-4 py-2 text-xs font-medium rounded-[6px] bg-bg-tertiary text-text-secondary border border-border-default hover:bg-bg-hover hover:text-text-primary transition-all duration-150"
+              >
+                Open a temporary project
+              </button>
             </div>
 
             {/* Floating badges */}
@@ -341,6 +433,67 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Open Temporary Project Modal */}
+      <Modal isOpen={showOpenModal} onClose={() => { setShowOpenModal(false); setOpenError(""); }} title="Open Temporary Project">
+        <form onSubmit={handleOpenTemp} className="space-y-4">
+          
+          {openError && (
+            <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-sm text-danger font-medium">
+              {openError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Project ID</label>
+            <input
+              type="text"
+              value={openTempId}
+              onChange={(e) => setOpenTempId(e.target.value)}
+              placeholder="envpt_..."
+              required
+              className="w-full px-3.5 py-2.5 bg-bg-input border border-border-default rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-all font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Token</label>
+            <input
+              type="text"
+              value={openTempToken}
+              onChange={(e) => setOpenTempToken(e.target.value)}
+              placeholder="envt_..."
+              required
+              className="w-full px-3.5 py-2.5 bg-bg-input border border-border-default rounded-lg text-text-primary text-sm focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-all font-mono"
+            />
+          </div>
+
+          <div className="pt-2 border-t border-border-subtle mt-2">
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Or paste your .env credentials directly:</label>
+            <textarea
+              onChange={handlePasteParse}
+              placeholder="Paste ENV_MANAGER_PROJECTID and ENV_MANAGER_TOKEN here..."
+              className="w-full px-3.5 py-2.5 h-20 bg-bg-input border border-border-default rounded-lg text-text-muted text-xs focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/30 transition-all font-mono resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2">
+            <button
+              type="button"
+              onClick={() => { setShowOpenModal(false); setOpenError(""); }}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-border-default text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={openingTemp}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-accent-primary text-text-inverse hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {openingTemp ? "Opening..." : "Open Project"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

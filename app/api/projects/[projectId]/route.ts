@@ -1,20 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
+import ProjectTemp from "@/models/ProjectTemp";
 import { checkProjectPermission } from "@/lib/permissions";
-import { decryptData } from "@/lib/crypto";
+import { decryptData, verifyToken } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
 // GET — get project details
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
 ) {
   const { projectId } = await params;
   logger.info("projects/[id]", "Get project details", { projectId });
 
   try {
+    if (projectId.startsWith("envpt_")) {
+      const token = request.headers.get("x-env-manager-token");
+      if (!token) return NextResponse.json({ error: "Missing token" }, { status: 401 });
+
+      await dbConnect();
+      const project = await ProjectTemp.findOne({ projectId });
+      if (!project || !verifyToken(token, project.tokenHash)) {
+         return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+
+      if (!Array.isArray(project.commits) || project.commits.length === 0) {
+        return NextResponse.json({ error: "Project has no commits." }, { status: 404 });
+      }
+
+      const commits = project.commits.map((c: any) => {
+        let dec = c.data;
+        try {
+          dec = decryptData(c.data, project.token);
+        } catch (e) {
+          // Ignore
+        }
+        return {
+          id: c.id,
+          committedBy: c.committedBy,
+          committedAt: c.committedAt,
+          data: dec,
+        };
+      });
+
+      return NextResponse.json({ 
+        project: {
+          projectId: project.projectId,
+          projectName: project.projectName,
+          data: commits[0].data,
+          commitId: commits[0].id,
+          commits: commits,
+          role: "editor",
+          updatedAt: project.updatedAt,
+        }
+      });
+    }
     const perm = await checkProjectPermission(projectId, "viewer");
     if (!perm.allowed) {
       logger.warn("projects/[id]", "Access denied", { projectId, userId: perm.userId, role: perm.role });

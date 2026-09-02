@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
+import ProjectTemp from "@/models/ProjectTemp";
 import { verifyToken, decryptData } from "@/lib/crypto";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
@@ -24,8 +25,8 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Missing required headers.", { status: 400 });
     }
 
-    if (!projectId.startsWith("envp_") || !token.startsWith("envt_")) {
-      logger.warn("get-env", "Invalid credential format", { projectIdPrefix: projectId.substring(0, 5) });
+    if (!(projectId.startsWith("envp_") || projectId.startsWith("envpt_")) || !token.startsWith("envt_")) {
+      logger.warn("get-env", "Invalid credential format", { projectIdPrefix: projectId.substring(0, 6) });
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
@@ -33,9 +34,17 @@ export async function GET(request: NextRequest) {
     await dbConnect();
 
     logger.info("get-env", "Looking up project", { projectId });
-    const project = await Project.findOne({ projectId }).select(
-      "data commits tokenHash"
-    );
+    let project = null;
+    
+    if (projectId.startsWith("envpt_")) {
+      project = await ProjectTemp.findOne({ projectId }).select(
+        "data commits tokenHash"
+      );
+    } else {
+      project = await Project.findOne({ projectId }).select(
+        "data commits tokenHash"
+      );
+    }
 
     if (!project) {
       logger.warn("get-env", "Project not found", { projectId });

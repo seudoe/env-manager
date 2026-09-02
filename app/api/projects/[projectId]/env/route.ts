@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
+import ProjectTemp from "@/models/ProjectTemp";
 import { checkProjectPermission } from "@/lib/permissions";
-import { encryptData } from "@/lib/crypto";
+import { encryptData, verifyToken } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
@@ -15,6 +16,38 @@ export async function PUT(
   logger.info("projects/[id]/env", "Update env data request", { projectId });
 
   try {
+    if (projectId.startsWith("envpt_")) {
+      const token = request.headers.get("x-env-manager-token");
+      if (!token) return NextResponse.json({ error: "Missing token" }, { status: 401 });
+
+      const { data, commitId } = await request.json();
+      if (typeof data !== "string") {
+        return NextResponse.json({ error: "Environment data must be a string." }, { status: 400 });
+      }
+
+      await dbConnect();
+      const project = await ProjectTemp.findOne({ projectId });
+      if (!project || !verifyToken(token, project.tokenHash)) {
+        return NextResponse.json({ error: "Access denied." }, { status: 403 });
+      }
+
+      if (!Array.isArray(project.commits) || project.commits.length === 0) {
+        return NextResponse.json({ error: "Project has no commits." }, { status: 404 });
+      }
+
+      if (commitId && project.commits[0].id !== commitId) {
+        return NextResponse.json(
+          { error: "Conflict: A newer commit exists.", latestCommitId: project.commits[0].id },
+          { status: 409 }
+        );
+      }
+
+      const encryptedData = encryptData(data, project.token);
+      project.commits[0].data = encryptedData;
+      await project.save();
+      return NextResponse.json({ success: true, updatedAt: project.updatedAt });
+    }
+
     const perm = await checkProjectPermission(projectId, "editor");
     if (!perm.allowed) {
       logger.warn("projects/[id]/env", "Access denied — insufficient role", { projectId, userId: perm.userId, role: perm.role });
@@ -88,6 +121,43 @@ export async function POST(
   logger.info("projects/[id]/env", "Commit env data request", { projectId });
 
   try {
+    if (projectId.startsWith("envpt_")) {
+      const token = request.headers.get("x-env-manager-token");
+      if (!token) return NextResponse.json({ error: "Missing token" }, { status: 401 });
+
+      const { commitId } = await request.json();
+
+      await dbConnect();
+      const project = await ProjectTemp.findOne({ projectId });
+      if (!project || !verifyToken(token, project.tokenHash)) {
+        return NextResponse.json({ error: "Access denied." }, { status: 403 });
+      }
+
+      if (!Array.isArray(project.commits) || project.commits.length === 0) {
+        return NextResponse.json({ error: "Project has no commits." }, { status: 404 });
+      }
+
+      if (project.commits[0].id !== commitId) {
+        return NextResponse.json(
+          { error: "Conflict: A newer commit exists.", latestCommitId: project.commits[0].id },
+          { status: 409 }
+        );
+      }
+
+      project.commits[0].committedBy = "Anonymous";
+      project.commits[0].committedAt = new Date();
+
+      project.commits.unshift({
+        id: crypto.randomBytes(16).toString("hex"),
+        committedBy: null,
+        committedAt: null,
+        data: project.commits[0].data,
+      });
+
+      await project.save();
+      return NextResponse.json({ success: true, newCommitId: project.commits[0].id });
+    }
+
     const perm = await checkProjectPermission(projectId, "editor");
     if (!perm.allowed) {
       return NextResponse.json({ error: "Access denied." }, { status: 403 });

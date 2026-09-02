@@ -15,6 +15,10 @@ export function generateProjectId(): string {
   return `envp_${generateSecureRandom(10)}`;
 }
 
+export function generateTempProjectId(): string {
+  return `envpt_${generateSecureRandom(10)}`;
+}
+
 export function generateToken(): string {
   return `envt_${generateSecureRandom(20)}`;
 }
