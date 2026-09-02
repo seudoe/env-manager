@@ -1,0 +1,27 @@
+{
+  "name": "@env-manager/cli",
+  "version": "1.0.0",
+  "description": "One-command setup for Env Manager — sync your .env from the server.",
+  "bin": {
+    "env-manager": "./bin/env-manager.js"
+  },
+  "main": "./bin/env-manager.js",
+  "type": "commonjs",
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node tests/run-tests.js"
+  },
+  "dependencies": {
+    "commander": "12.1.0",
+    "inquirer": "8.2.6"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["env", "environment", "dotenv", "sync", "cli"],
+  "license": "MIT"
+}

@@ -244,7 +244,7 @@ export default function SettingsPage({
             <button
               type="submit"
               disabled={renaming}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-gradient-to-r from-accent-primary to-accent-secondary text-white hover:opacity-90 transition-all disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-accent-primary text-text-inverse hover:opacity-90 transition-all disabled:opacity-50"
             >
               {renaming ? "Renaming..." : "Rename"}
             </button>
