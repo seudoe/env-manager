@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
-import { verifyToken } from "@/lib/crypto";
+import { verifyToken, decryptData } from "@/lib/crypto";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -49,9 +49,17 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
-    logger.info("get-env", "Token verified, returning env data", { projectId, dataLength: project.data.length });
+    logger.info("get-env", "Token verified, decrypting env data", { projectId, dataLength: project.data.length });
 
-    return new NextResponse(project.data, {
+    let decryptedData = project.data;
+    try {
+      decryptedData = decryptData(project.data, token);
+    } catch (e) {
+      logger.error("get-env", "Failed to decrypt data", { projectId, error: (e as Error).message });
+      return new NextResponse("Failed to decrypt data.", { status: 500 });
+    }
+
+    return new NextResponse(decryptedData, {
       status: 200,
       headers: {
         "Content-Type": "text/plain; charset=utf-8",

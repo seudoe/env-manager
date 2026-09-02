@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import { checkProjectPermission } from "@/lib/permissions";
+import { decryptData } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 
 // GET — get project details
@@ -27,10 +28,17 @@ export async function GET(
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
+    let decryptedData = project.data;
+    try {
+      decryptedData = decryptData(project.data, project.token);
+    } catch (e) {
+      logger.error("projects/[id]", "Failed to decrypt data", { projectId, error: (e as Error).message });
+    }
+
     const response: Record<string, unknown> = {
       projectId: project.projectId,
       projectName: project.projectName,
-      data: project.data,
+      data: decryptedData,
       ownerUsername: project.ownerUsername,
       role: perm.role,
       updatedAt: project.updatedAt,

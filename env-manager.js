@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ENV_PATH = path.resolve(process.cwd(), ".env");
-const API_URL = process.env.ENV_MANAGER_URL || "https://env-manage.vercel.app";
+const API_URL = process.env.ENV_MANAGER_URL || "http://localhost:3000"; // Default to localhost for testing
 
 async function main() {
   let envContent;

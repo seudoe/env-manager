@@ -15,7 +15,7 @@ program
   .description("Connect this project to Env Manager")
   .option("-p, --project <id>", "Project ID (envp_...)")
   .option("-t, --token <token>", "Project token (envt_...)")
-  .option("-u, --url <url>", "Env Manager server URL", "https://env-manage.vercel.app")
+  .option("-u, --url <url>", "Env Manager server URL", process.env.ENV_MANAGER_URL || "http://localhost:3000")
   .option("--language <lang>", "Force language: node or python")
   .option("--script <name>", "package.json script name to patch (e.g. dev, start)")
   .option("--no-sync", "Skip the sync-now prompt after init")
@@ -31,7 +31,7 @@ program
 program
   .command("sync")
   .description("Fetch the canonical .env from the server (overwrites local .env)")
-  .option("-u, --url <url>", "Env Manager server URL", "https://env-manage.vercel.app")
+  .option("-u, --url <url>", "Env Manager server URL", process.env.ENV_MANAGER_URL || "http://localhost:3000")
   .action(async (options) => {
     try {
       await runSync(options);

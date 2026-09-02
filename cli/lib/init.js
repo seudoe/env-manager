@@ -82,7 +82,7 @@ async function runInit(options = {}) {
         type: "input",
         name: "url",
         message: "Env Manager server URL:",
-        default: "https://env-manage.vercel.app",
+        default: process.env.ENV_MANAGER_URL || "http://localhost:3000",
         validate: (v) => {
           try {
             new URL(v.trim());

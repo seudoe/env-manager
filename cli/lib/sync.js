@@ -11,7 +11,7 @@ const { readCredentials } = require("./env");
  * @param {{ url?: string, cwd?: string }} options
  */
 async function runSync(options = {}) {
-  const serverUrl = (options.url || "https://env-manage.vercel.app").replace(/\/$/, "");
+  const serverUrl = (options.url || process.env.ENV_MANAGER_URL || "http://localhost:3000").replace(/\/$/, "");
   const cwd = options.cwd || process.cwd();
   const envPath = path.join(cwd, ".env");
 

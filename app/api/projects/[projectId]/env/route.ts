@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import { checkProjectPermission } from "@/lib/permissions";
+import { encryptData } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 
 // PUT — update environment data
@@ -29,17 +30,20 @@ export async function PUT(
     }
 
     await dbConnect();
-    logger.info("projects/[id]/env", "Saving env data", { projectId, dataLength: data.length, userId: perm.userId });
-    const project = await Project.findOneAndUpdate(
-      { projectId },
-      { data },
-      { new: true }
-    );
-
+    
+    // We need the token to encrypt, so find the project first
+    const project = await Project.findOne({ projectId });
     if (!project) {
       logger.warn("projects/[id]/env", "Project not found", { projectId });
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
+
+    logger.info("projects/[id]/env", "Encrypting and saving env data", { projectId, dataLength: data.length, userId: perm.userId });
+    
+    const encryptedData = encryptData(data, project.token);
+    
+    project.data = encryptedData;
+    await project.save();
 
     logger.info("projects/[id]/env", "Env data saved successfully", { projectId, updatedAt: project.updatedAt });
     return NextResponse.json({ success: true, updatedAt: project.updatedAt });

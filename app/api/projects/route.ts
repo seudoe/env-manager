@@ -3,7 +3,7 @@ import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import User from "@/models/User";
 import { getSession } from "@/lib/auth";
-import { generateProjectId, generateToken, hashToken } from "@/lib/crypto";
+import { generateProjectId, generateToken, hashToken, encryptData } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 
 // GET — list all user's projects (owned + contributed)
@@ -101,11 +101,13 @@ ENV_MANAGER_TOKEN=${token}
 # ---------------------------------------------
 `;
 
+    const encryptedData = encryptData(defaultEnv, token);
+
     logger.info("projects", "Creating project in database", { projectId, projectName: projectName.trim(), ownerId: session.userId });
     const project = await Project.create({
       projectId,
       projectName: projectName.trim(),
-      data: defaultEnv,
+      data: encryptedData,
       tokenHash: tokenHashed,
       token,
       ownerId: session.userId,
