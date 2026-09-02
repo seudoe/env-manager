@@ -5,6 +5,7 @@ import User from "@/models/User";
 import { getSession } from "@/lib/auth";
 import { generateProjectId, generateToken, hashToken, encryptData } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import crypto from "crypto";
 
 // GET — list all user's projects (owned + contributed)
 export async function GET() {
@@ -107,7 +108,14 @@ ENV_MANAGER_TOKEN=${token}
     const project = await Project.create({
       projectId,
       projectName: projectName.trim(),
-      data: encryptedData,
+      commits: [
+        {
+          id: crypto.randomBytes(16).toString("hex"),
+          committedBy: null,
+          committedAt: null,
+          data: encryptedData,
+        },
+      ],
       tokenHash: tokenHashed,
       token,
       ownerId: session.userId,

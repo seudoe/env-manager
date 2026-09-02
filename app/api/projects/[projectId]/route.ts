@@ -4,6 +4,7 @@ import Project from "@/models/Project";
 import { checkProjectPermission } from "@/lib/permissions";
 import { decryptData } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import crypto from "crypto";
 
 // GET — get project details
 export async function GET(
@@ -28,17 +29,47 @@ export async function GET(
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
-    let decryptedData = project.data;
-    try {
-      decryptedData = decryptData(project.data, project.token);
-    } catch (e) {
-      logger.error("projects/[id]", "Failed to decrypt data", { projectId, error: (e as Error).message });
+    // Schema Migration: if it's an old project with data but no commits, migrate it.
+    const hasCommits = Array.isArray(project.commits) && project.commits.length > 0;
+    if (!hasCommits && project.data) {
+      if (!Array.isArray(project.commits)) project.commits = [];
+      project.commits.push({
+        id: crypto.randomBytes(16).toString("hex"),
+        committedBy: null,
+        committedAt: null,
+        data: project.data,
+      });
+      project.data = undefined;
+      await project.save();
     }
+
+    if (!Array.isArray(project.commits) || project.commits.length === 0) {
+      return NextResponse.json({ error: "Project has no commits." }, { status: 404 });
+    }
+
+    const latestCommit = project.commits[0];
+
+    const commits = project.commits.map((c: any) => {
+      let dec = c.data;
+      try {
+        dec = decryptData(c.data, project.token);
+      } catch (e) {
+        // Ignore
+      }
+      return {
+        id: c.id,
+        committedBy: c.committedBy,
+        committedAt: c.committedAt,
+        data: dec,
+      };
+    });
 
     const response: Record<string, unknown> = {
       projectId: project.projectId,
       projectName: project.projectName,
-      data: decryptedData,
+      data: commits[0].data,
+      commitId: commits[0].id,
+      commits: commits,
       ownerUsername: project.ownerUsername,
       role: perm.role,
       updatedAt: project.updatedAt,

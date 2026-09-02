@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     logger.info("get-env", "Looking up project", { projectId });
     const project = await Project.findOne({ projectId }).select(
-      "data tokenHash"
+      "data commits tokenHash"
     );
 
     if (!project) {
@@ -49,11 +49,17 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
-    logger.info("get-env", "Token verified, decrypting env data", { projectId, dataLength: project.data.length });
+    const targetData = project.commits?.length > 0 ? project.commits[0].data : project.data;
 
-    let decryptedData = project.data;
+    if (!targetData) {
+      return new NextResponse("Project data is empty.", { status: 404 });
+    }
+
+    logger.info("get-env", "Token verified, decrypting env data", { projectId, dataLength: targetData.length });
+
+    let decryptedData = targetData;
     try {
-      decryptedData = decryptData(project.data, token);
+      decryptedData = decryptData(targetData, token);
     } catch (e) {
       logger.error("get-env", "Failed to decrypt data", { projectId, error: (e as Error).message });
       return new NextResponse("Failed to decrypt data.", { status: 500 });

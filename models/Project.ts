@@ -6,11 +6,19 @@ export interface IContributor {
   role: "editor" | "viewer";
 }
 
+export interface ICommit {
+  id: string;
+  committedBy: string | null;
+  committedAt: Date | null;
+  data: string;
+}
+
 export interface IProject extends Document {
   _id: mongoose.Types.ObjectId;
   projectId: string;
   projectName: string;
-  data: string;
+  data?: string; // Legacy field, to be migrated
+  commits: ICommit[];
   tokenHash: string;
   token: string;
   ownerId: string;
@@ -46,7 +54,21 @@ const ProjectSchema = new Schema<IProject>(
     },
     data: {
       type: String,
-      default: "",
+      required: false,
+    },
+    commits: {
+      type: [
+        new Schema<ICommit>(
+          {
+            id: { type: String, required: true },
+            committedBy: { type: String, default: null },
+            committedAt: { type: Date, default: null },
+            data: { type: String, required: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
     },
     tokenHash: {
       type: String,
