@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { addToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +20,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      addToast("Signing in...", "info");
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -28,13 +31,16 @@ export default function LoginPage() {
 
       if (!res.ok) {
         setError(data.error || "Login failed.");
+        addToast(data.error || "Login failed.", "error");
         return;
       }
 
+      addToast(`Welcome back, ${data.user.username}!`, "success");
       router.push("/user");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
+      addToast("Connection error. Please try again.", "error");
     } finally {
       setLoading(false);
     }

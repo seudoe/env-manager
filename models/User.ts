@@ -1,9 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
-
+import Project from "./Project";
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   username: string;
   passwordHash: string;
+  projects: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,10 @@ const UserSchema = new Schema<IUser>(
     passwordHash: {
       type: String,
       required: true,
+    },
+    projects: {
+      type: [String],
+      default: [],
     },
   },
   {

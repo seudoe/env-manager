@@ -31,7 +31,10 @@ export default function ContributorsPage({
       const res = await fetch(`/api/projects/${projectId}/contributors`);
       const data = await res.json();
       if (data.owner) setOwner(data.owner);
-      if (data.contributors) setContributors(data.contributors);
+      if (data.contributors) {
+        setContributors(data.contributors);
+        addToast(`Loaded ${data.contributors.length + 1} member(s).`, "info");
+      }
       if (data.currentUserRole) setCurrentUserRole(data.currentUserRole);
     } catch {
       addToast("Failed to load contributors.", "error");

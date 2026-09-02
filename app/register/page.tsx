@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ui/Toast";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -12,6 +13,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const { addToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,12 +21,14 @@ export default function RegisterPage() {
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
+      addToast("Passwords do not match.", "error");
       return;
     }
 
     setLoading(true);
 
     try {
+      addToast("Creating your account...", "info");
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -35,13 +39,16 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setError(data.error || "Registration failed.");
+        addToast(data.error || "Registration failed.", "error");
         return;
       }
 
+      addToast(`Account created! Welcome, ${data.user.username}!`, "success");
       router.push("/user");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
+      addToast("Connection error. Please try again.", "error");
     } finally {
       setLoading(false);
     }

@@ -28,7 +28,10 @@ export default function DashboardPage() {
     try {
       const res = await fetch("/api/projects");
       const data = await res.json();
-      if (data.projects) setProjects(data.projects);
+      if (data.projects) {
+        setProjects(data.projects);
+        addToast(`Loaded ${data.projects.length} project(s).`, "info");
+      }
     } catch {
       addToast("Failed to load projects.", "error");
     } finally {
@@ -46,6 +49,7 @@ export default function DashboardPage() {
 
     setCreating(true);
     try {
+      addToast("Creating project...", "info");
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -76,6 +80,7 @@ export default function DashboardPage() {
   };
 
   const openProject = (project: ProjectItem) => {
+    addToast(`Opening ${project.projectName}...`, "info");
     setCurrentProject({
       projectId: project.projectId,
       projectName: project.projectName,

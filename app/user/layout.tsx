@@ -3,7 +3,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ToastProvider } from "@/components/ui/Toast";
+import { useToast } from "@/components/ui/Toast";
 
 interface UserContextType {
   user: { id: string; username: string } | null;
@@ -58,11 +58,14 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     }
   }, [pathname, currentProject]);
 
+  const { addToast } = useToast();
+
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    addToast("Logged out successfully.", "success");
     router.push("/login");
     router.refresh();
-  }, [router]);
+  }, [router, addToast]);
 
   const navItems = [
     { href: "/user", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
@@ -86,7 +89,6 @@ export default function UserLayout({ children }: { children: ReactNode }) {
 
   return (
     <UserContext.Provider value={{ user, currentProject, setCurrentProject, logout }}>
-      <ToastProvider>
         <div className="min-h-screen bg-bg-primary flex">
           {/* Mobile overlay */}
           {sidebarOpen && (
@@ -191,7 +193,6 @@ export default function UserLayout({ children }: { children: ReactNode }) {
             </div>
           </main>
         </div>
-      </ToastProvider>
     </UserContext.Provider>
   );
 }

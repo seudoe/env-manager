@@ -30,6 +30,7 @@ export default function ProjectFilePage({
           if (result.project.updatedAt) {
             setLastSaved(result.project.updatedAt);
           }
+          addToast(`Loaded ${result.project.projectName} (${result.project.role}).`, "info");
         }
       })
       .catch(() => addToast("Failed to load project.", "error"))

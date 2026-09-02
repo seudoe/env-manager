@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
+import User from "@/models/User";
 import { getSession } from "@/lib/auth";
 import { generateProjectId, generateToken, hashToken } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
@@ -111,6 +112,12 @@ ENV_MANAGER_TOKEN=${token}
       ownerUsername: session.username,
       contributors: [],
     });
+
+    logger.info("projects", "Updating user document to include new project", { userId: session.userId, projectId });
+    await User.findByIdAndUpdate(
+      session.userId,
+      { $push: { projects: projectId } }
+    );
 
     logger.info("projects", "Project created successfully", { projectId: project.projectId, projectName: project.projectName });
 

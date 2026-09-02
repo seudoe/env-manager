@@ -35,7 +35,10 @@ export default function SettingsPage({
     fetch(`/api/projects/${projectId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.project) setProject(data.project);
+        if (data.project) {
+          setProject(data.project);
+          addToast("Settings loaded.", "info");
+        }
       })
       .catch(() => addToast("Failed to load settings.", "error"))
       .finally(() => setLoading(false));
