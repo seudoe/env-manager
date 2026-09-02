@@ -110,6 +110,10 @@ export default function ProjectFilePage({
   };
 
   const handleCommit = () => {
+    if (commits.length > 1 && data === commits[1].data) {
+      addToast("Already up to date. No changes to commit.", "info");
+      return;
+    }
     setShowCommitConfirmModal(true);
   };
 
@@ -167,8 +171,9 @@ export default function ProjectFilePage({
     : null;
 
   return (
-    <div className="fade-in">
-      {/* Header */}
+    <>
+      <div className="fade-in">
+        {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
           <h2 className="text-lg font-semibold text-text-primary tracking-tight">{projectName}</h2>
@@ -331,9 +336,10 @@ export default function ProjectFilePage({
                     <span>{dateStr}</span>
                   </div>
                 </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
@@ -467,6 +473,6 @@ export default function ProjectFilePage({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

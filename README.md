@@ -37,8 +37,10 @@ Developer runs application
 ## Features
 
 - **Zero Code Changes** — Works outside your codebase. No SDK or library needed.
-- **Team Collaboration** — Add contributors with editor or viewer roles.
-- **Secure by Design** — Tokens are hashed, passwords use bcrypt, cookies are HTTP-only, API is rate-limited.
+- **Version Control & History** — Every save is committed as a new version. You can view the full commit history, see who made changes, and resolve edit conflicts cleanly.
+- **Temporary Projects** — Create and use un-owned `.env` projects instantly without making an account. Perfect for hackathons and quick sharing.
+- **Team Collaboration** — Add contributors to owned projects with specific editor or viewer roles.
+- **Military-grade Encryption** — Environment strings are encrypted at rest using AES-256-GCM. The encryption key is derived directly from your project token, meaning the server cannot read your data without it!
 - **Works Everywhere** — JavaScript and Python bootstrap scripts. Compatible with Node.js, Docker, CI/CD, and any platform.
 
 ## Tech Stack
@@ -98,6 +100,7 @@ public/           → Bootstrap scripts (env-manager.js, env-manager.py)
 
 ## Security
 
+- **Encrypted at Rest** — Environment data is encrypted in MongoDB using AES-256-GCM, keyed by your raw access token. If the database is compromised, the data remains unreadable.
 - Passwords hashed with bcrypt (12 rounds)
 - Project tokens hashed with SHA-256, timing-safe comparison
 - HTTP-only secure session cookies
@@ -106,6 +109,11 @@ public/           → Bootstrap scripts (env-manager.js, env-manager.py)
 - Anti-enumeration on the get-env API
 
 > **Keep your Project Token secret.** Anyone with the Project ID and Token can retrieve the project's environment variables.
+
+## Future Implementations
+
+- Option to delete projects (both temporary and owned ones)
+- Option to transfer a temporary project to an account (converting it to an owned project)
 
 ## License
 

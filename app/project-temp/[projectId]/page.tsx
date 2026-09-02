@@ -116,6 +116,10 @@ export default function TempProjectFilePage({
   };
 
   const handleCommit = () => {
+    if (commits.length > 1 && data === commits[1].data) {
+      addToast("Already up to date. No changes to commit.", "info");
+      return;
+    }
     setShowCommitConfirmModal(true);
   };
 
@@ -342,8 +346,9 @@ export default function TempProjectFilePage({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Commit Detail Modal */}
+      {/* Commit Detail Modal */}
         {selectedCommit && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in p-4">
             <div className="bg-bg-primary border border-border-default rounded-[12px] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col scale-in">
@@ -474,7 +479,6 @@ export default function TempProjectFilePage({
           </div>
         )}
 
-      </div>
     </div>
   );
 }
