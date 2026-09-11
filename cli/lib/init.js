@@ -133,16 +133,26 @@ async function runInit(options = {}) {
       scriptName = name;
     }
   } else if (language === "python") {
-    // For Python, just ask what the start command is so we can print it
-    const { cmd } = await inquirer.prompt([
-      {
-        type: "input",
-        name: "cmd",
-        message: "What command do you use to start your app? (e.g. python app.py)",
-        default: "python app.py",
-      },
-    ]);
-    devCommand = cmd.trim();
+    if (options.startCommand) {
+      // --start-command flag provided: use it directly, skip the prompt.
+      // Without this, --project/--token/--language alone were not enough
+      // to run `init` non-interactively for a Python project — the CLI
+      // would still block on this prompt (and crash outright if stdin
+      // wasn't a TTY, e.g. in CI), even though the README documents a
+      // "Non-interactive (CI/CD)" mode.
+      devCommand = options.startCommand.trim();
+    } else {
+      // For Python, just ask what the start command is so we can print it
+      const { cmd } = await inquirer.prompt([
+        {
+          type: "input",
+          name: "cmd",
+          message: "What command do you use to start your app? (e.g. python app.py)",
+          default: "python app.py",
+        },
+      ]);
+      devCommand = cmd.trim();
+    }
   }
 
   // ─── Execution ────────────────────────────────────────────────────────────

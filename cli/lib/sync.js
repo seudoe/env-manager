@@ -36,7 +36,28 @@ async function runSync(options = {}) {
     throw new Error(`Server responded with ${res.status}${text ? `: ${text}` : ""}`);
   }
 
-  const data = await res.text();
+  let data = await res.text();
+
+  // The server's canonical content is whatever was last saved in the
+  // dashboard — if someone cleans up the default template there (a
+  // completely normal thing to do: delete the "Env Manager credentials"
+  // comment block once you don't need to see it anymore), a plain
+  // overwrite would erase ENV_MANAGER_PROJECTID/TOKEN from the local
+  // .env too. The *next* sync (including the one this same bootstrap
+  // script runs automatically before every `npm run dev`) then has
+  // nothing to authenticate with and fails outright — so make sync
+  // re-append the credentials it already has if the fetched content
+  // didn't carry them, and it can never sync itself out of working.
+  const hasProjectId = /^ENV_MANAGER_PROJECTID=/m.test(data);
+  const hasToken = /^ENV_MANAGER_TOKEN=/m.test(data);
+  if (!hasProjectId || !hasToken) {
+    const separator = data.length === 0 || data.endsWith("\n") ? "" : "\n";
+    data +=
+      separator +
+      (hasProjectId ? "" : `ENV_MANAGER_PROJECTID=${projectId}\n`) +
+      (hasToken ? "" : `ENV_MANAGER_TOKEN=${token}\n`);
+  }
+
   fs.writeFileSync(envPath, data, "utf-8");
   console.log("[env-manager] ✓ .env synced successfully.");
 }

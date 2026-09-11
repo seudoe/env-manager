@@ -3,38 +3,32 @@
 import { useState, useEffect, useRef } from "react";
 
 /* ── CLI docs data ─────────────────────────────────────────────────── */
+// Kept in sync with the actual `commander` flags in cli/bin/env-manager.js —
+// this page previously listed a --lang flag that doesn't exist (the real
+// flag is --language, taking "node" or "python", not "js"/"py"), sync
+// flags that don't exist (sync only takes --url; it always reads
+// credentials from the existing .env and always writes to .env), and two
+// commands — push and status — that were never implemented at all.
 const CLI_DOCS = [
   {
     cmd: "npx @env-manager/cli init",
     desc: "Interactive setup — detects your language, writes credentials, drops the bootstrap script, and patches your start command.",
     flags: [
-      { flag: "--project <id>",  desc: "Skip the project-ID prompt" },
-      { flag: "--token <token>", desc: "Skip the token prompt" },
-      { flag: "--lang js|py",    desc: "Force JavaScript or Python bootstrap" },
-      { flag: "--url <url>",     desc: "Point to a self-hosted Env Manager instance" },
+      { flag: "--project <id>",        desc: "Project ID — skips the prompt" },
+      { flag: "--token <token>",       desc: "Project token — skips the prompt" },
+      { flag: "--language node|python", desc: "Force the project language instead of auto-detecting" },
+      { flag: "--script <name>",       desc: "Node only — package.json script to patch (e.g. dev, start)" },
+      { flag: "--start-command <cmd>", desc: "Python only — e.g. \"python app.py\"; needed for non-interactive setup" },
+      { flag: "--url <url>",           desc: "Point to a self-hosted Env Manager instance" },
+      { flag: "--no-sync",             desc: "Skip the sync-now prompt at the end" },
     ],
   },
   {
     cmd: "npx @env-manager/cli sync",
-    desc: "Pull the latest .env from the server and overwrite your local file. Reads credentials from the existing .env.",
+    desc: "Fetch the canonical .env from the server and overwrite your local file. Reads credentials from the existing .env — run init first if you haven't.",
     flags: [
-      { flag: "--project <id>",  desc: "Override project ID" },
-      { flag: "--token <token>", desc: "Override token" },
-      { flag: "--out <path>",    desc: "Write to a custom file path instead of .env" },
+      { flag: "--url <url>", desc: "Point to a self-hosted Env Manager instance" },
     ],
-  },
-  {
-    cmd: "npx @env-manager/cli push",
-    desc: "Upload your local .env to the server, overwriting the remote copy.",
-    flags: [
-      { flag: "--file <path>",   desc: "Read from a custom file path instead of .env" },
-      { flag: "--dry-run",       desc: "Preview the diff without writing" },
-    ],
-  },
-  {
-    cmd: "npx @env-manager/cli status",
-    desc: "Show whether your local .env is in sync with the server.",
-    flags: [],
   },
 ];
 
@@ -372,7 +366,14 @@ async function main() {
       process.exit(1);
     }
 
-    const data = await res.text();
+    let data = await res.text();
+
+    // Preserve credentials even if the server's content doesn't include
+    // them (e.g. you cleaned up the default template in the dashboard) —
+    // otherwise the next sync would have nothing to authenticate with.
+    if (!/^ENV_MANAGER_PROJECTID=/m.test(data)) data += \`ENV_MANAGER_PROJECTID=\${projectId}\\n\`;
+    if (!/^ENV_MANAGER_TOKEN=/m.test(data)) data += \`ENV_MANAGER_TOKEN=\${token}\\n\`;
+
     fs.writeFileSync(ENV_PATH, data, "utf-8");
     console.log("[env-manager] .env synced successfully.");
   } catch (err) {
@@ -391,6 +392,7 @@ main();`}</CodeBlock>
             Alternatively, create <code className="px-1.5 py-0.5 bg-bg-tertiary rounded text-accent-primary font-mono text-sm">env-manager.py</code> for Python projects:
           </p>
           <CodeBlock title="env-manager.py">{`import os
+import re
 import sys
 import urllib.request
 import urllib.error
@@ -435,6 +437,14 @@ def main():
     except Exception as e:
         print(f"[env-manager] Request failed: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Preserve credentials even if the server's content doesn't include
+    # them (e.g. you cleaned up the default template in the dashboard) —
+    # otherwise the next sync would have nothing to authenticate with.
+    if not re.search(r"^ENV_MANAGER_PROJECTID=", data, re.MULTILINE):
+        data += f"ENV_MANAGER_PROJECTID={project_id}\\n"
+    if not re.search(r"^ENV_MANAGER_TOKEN=", data, re.MULTILINE):
+        data += f"ENV_MANAGER_TOKEN={token}\\n"
 
     with open(ENV_PATH, "w", encoding="utf-8") as f:
         f.write(data)

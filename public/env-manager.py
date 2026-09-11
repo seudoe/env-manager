@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import urllib.request
 import urllib.error
@@ -52,6 +53,20 @@ def main():
     except Exception as e:
         print(f"[env-manager] Request failed: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Re-append credentials if the server's canonical content doesn't
+    # carry them (e.g. the default template's bookkeeping lines were
+    # cleaned up in the dashboard) — otherwise the next run of this same
+    # script would have nothing to authenticate with.
+    has_project_id = re.search(r"^ENV_MANAGER_PROJECTID=", data, re.MULTILINE)
+    has_token = re.search(r"^ENV_MANAGER_TOKEN=", data, re.MULTILINE)
+    if not has_project_id or not has_token:
+        separator = "" if not data or data.endswith("\n") else "\n"
+        data += separator
+        if not has_project_id:
+            data += f"ENV_MANAGER_PROJECTID={project_id}\n"
+        if not has_token:
+            data += f"ENV_MANAGER_TOKEN={token}\n"
 
     # Overwrite local .env
     with open(ENV_PATH, "w", encoding="utf-8") as f:
