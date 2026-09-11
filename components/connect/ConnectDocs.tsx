@@ -511,7 +511,9 @@ CMD ["sh", "-c", "node env-manager.js && npm start"]`}</CodeBlock>
               <h4 className="text-sm font-semibold text-warning mb-2">⚠️ Keep Your Token Secret</h4>
               <p className="text-base text-text-secondary">
                 Anyone with the Project ID and Token can retrieve your project&apos;s environment variables.
-                Never commit tokens to version control.
+                Never commit tokens to version control. The token is shown once — at creation, or when you
+                rotate it from a project&apos;s <strong>Settings</strong> page — and can&apos;t be viewed again
+                after that, even by the project owner.
               </p>
             </div>
             <div className="p-5 bg-bg-secondary border border-border-default rounded-xl">
@@ -532,7 +534,13 @@ env-manager.js`}</CodeBlock>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-success mt-0.5">✓</span>
-                  Rotate your project token if you suspect it has been compromised
+                  Rotate your project token (Settings → Project Token → Rotate Token) if you suspect it has
+                  been compromised — this takes effect immediately, no re-encryption or downtime involved
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="text-success mt-0.5">✓</span>
+                  Rotate the token after removing a contributor — removing them from the project doesn&apos;t
+                  by itself invalidate a token they may have already seen
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-danger mt-0.5">✕</span>
