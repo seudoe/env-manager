@@ -30,16 +30,29 @@ npx @env-manager/cli init [options]
 |------|-------------|---------|
 | `-p, --project <id>` | Project ID (`envp_...`) | prompted |
 | `-t, --token <token>` | Project token (`envt_...`) | prompted |
-| `-u, --url <url>` | Env Manager server URL | `https://env-manage.vercel.app` |
+| `-u, --url <url>` | Env Manager server URL | `$ENV_MANAGER_URL`, else `http://localhost:3000` |
 | `--language <lang>` | Force `node` or `python` | auto-detected |
+| `--script <name>` | Node only — `package.json` script to patch (e.g. `dev`, `start`) | prompted |
+| `--start-command <cmd>` | Python only — command used to start your app (e.g. `"python app.py"`), printed in the setup instructions | prompted |
+| `--no-sync` | Skip the sync-now prompt at the end of `init` | — |
 
 **Non-interactive (CI/CD):**
 
 ```bash
+# Node
 npx @env-manager/cli init \
   --project envp_yourProjectId \
   --token envt_yourToken \
-  --language node
+  --language node \
+  --script dev
+
+# Python — needs --start-command too, or init still prompts for it
+# (and will fail if stdin isn't a TTY, e.g. in CI)
+npx @env-manager/cli init \
+  --project envp_yourProjectId \
+  --token envt_yourToken \
+  --language python \
+  --start-command "python app.py"
 ```
 
 ---
@@ -54,9 +67,9 @@ npx @env-manager/cli sync [options]
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-u, --url <url>` | Env Manager server URL | `https://env-manage.vercel.app` |
+| `-u, --url <url>` | Env Manager server URL | `$ENV_MANAGER_URL`, else `http://localhost:3000` |
 
-> ⚠️ This overwrites your local `.env`. Make sure any local changes are saved to the dashboard first.
+> ⚠️ This overwrites your local `.env`. Make sure any local changes are saved to the dashboard first. `sync` preserves `ENV_MANAGER_PROJECTID`/`ENV_MANAGER_TOKEN` even if the server's content doesn't include them (e.g. you cleaned up the default template in the dashboard) — otherwise the next sync would have nothing to authenticate with.
 
 ---
 
@@ -66,7 +79,10 @@ After `init`, your project contains a bootstrap script (`env-manager.js` or `env
 
 1. Reads `ENV_MANAGER_PROJECTID` and `ENV_MANAGER_TOKEN` from your `.env`
 2. Calls the Env Manager API to fetch the canonical `.env`
-3. Overwrites your local `.env` with the server version
+3. Overwrites your local `.env` with the server version — re-adding
+   `ENV_MANAGER_PROJECTID`/`ENV_MANAGER_TOKEN` if the server's content
+   doesn't include them, so this step can never sync itself out of
+   working
 
 For Node projects, this script is automatically prepended to your start command in `package.json`:
 

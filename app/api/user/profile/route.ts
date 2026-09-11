@@ -70,6 +70,7 @@ export async function PATCH(request: NextRequest) {
         await createSession({
           userId: session.userId,
           username: cleanUsername,
+          tokenVersion: user.tokenVersion ?? 0,
         });
 
         if (!newPassword) {
@@ -112,13 +113,20 @@ export async function PATCH(request: NextRequest) {
 
       logger.info("user/profile", "Hashing new password...");
       user.passwordHash = await hashPassword(newPassword);
+      // Bump tokenVersion so every session issued before this password
+      // change is immediately rejected by getSession(), even though its
+      // JWT signature and expiry are still otherwise valid. Without this,
+      // a stolen session cookie kept working for up to 7 days after the
+      // account holder "secured" their account by changing the password.
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
       await user.save();
-      logger.info("user/profile", "Password updated successfully", { userId: session.userId });
+      logger.info("user/profile", "Password updated, all previous sessions invalidated", { userId: session.userId });
 
-      logger.info("user/profile", "Refreshing session after password change");
+      logger.info("user/profile", "Issuing fresh session for the new password");
       await createSession({
         userId: session.userId,
         username: user.username,
+        tokenVersion: user.tokenVersion,
       });
     }
 

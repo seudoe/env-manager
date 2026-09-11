@@ -4,6 +4,7 @@ import Project from "@/models/Project";
 import ProjectTemp from "@/models/ProjectTemp";
 import { checkProjectPermission } from "@/lib/permissions";
 import { decryptData, verifyToken } from "@/lib/crypto";
+import { redactProjectTokenForViewer } from "@/lib/redact";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
@@ -33,7 +34,7 @@ export async function GET(
       const commits = project.commits.map((c: any) => {
         let dec = c.data;
         try {
-          dec = decryptData(c.data, project.token);
+          dec = decryptData(c.data, project.projectId);
         } catch (e) {
           // Ignore
         }
@@ -94,7 +95,7 @@ export async function GET(
     const commits = project.commits.map((c: any) => {
       let dec = c.data;
       try {
-        dec = decryptData(c.data, project.token);
+        dec = decryptData(c.data, project.projectId);
       } catch (e) {
         // Ignore
       }
@@ -106,20 +107,39 @@ export async function GET(
       };
     });
 
+    // Viewers have read-only access by design, but the env content often
+    // contains this project's own ENV_MANAGER_TOKEN line — which, unlike
+    // the UI's role badge, is itself a fully working credential against
+    // /api/get-env. Without redaction a "viewer" could lift that token
+    // and get de-facto editor/CLI access. Editors are left unredacted
+    // since they already have write access to this same content and
+    // redacting would risk them saving the placeholder text back over
+    // the real token.
+    const visibleCommits =
+      perm.role === "viewer"
+        ? commits.map((c: { id: string; committedBy: string | null; committedAt: Date | null; data: string }) => ({
+            ...c,
+            data: redactProjectTokenForViewer(c.data),
+          }))
+        : commits;
+
     const response: Record<string, unknown> = {
       projectId: project.projectId,
       projectName: project.projectName,
-      data: commits[0].data,
-      commitId: commits[0].id,
-      commits: commits,
+      data: visibleCommits[0].data,
+      commitId: visibleCommits[0].id,
+      commits: visibleCommits,
       ownerUsername: project.ownerUsername,
       role: perm.role,
       updatedAt: project.updatedAt,
     };
 
-    if (perm.role === "owner") {
-      response.token = project.token;
-    }
+    // The project token itself is no longer persisted in plaintext (see
+    // models/Project.ts) and is therefore never returned here, even to
+    // the owner — it's shown once at creation time, and from then on the
+    // owner must use POST /api/projects/[projectId]/rotate-token to get a
+    // fresh one if it's lost. This means a database read alone can no
+    // longer yield a working credential.
 
     logger.info("projects/[id]", "Project details returned", { projectId, role: perm.role });
     return NextResponse.json({ project: response });

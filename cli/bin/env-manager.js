@@ -17,7 +17,8 @@ program
   .option("-t, --token <token>", "Project token (envt_...)")
   .option("-u, --url <url>", "Env Manager server URL", process.env.ENV_MANAGER_URL || "http://localhost:3000")
   .option("--language <lang>", "Force language: node or python")
-  .option("--script <name>", "package.json script name to patch (e.g. dev, start)")
+  .option("--script <name>", "package.json script name to patch (e.g. dev, start) [Node]")
+  .option("--start-command <cmd>", "Command used to start your app (e.g. \"python app.py\") [Python]")
   .option("--no-sync", "Skip the sync-now prompt after init")
   .action(async (options) => {
     try {

@@ -5,6 +5,14 @@ export interface IUser extends Document {
   username: string;
   passwordHash: string;
   projects: string[];
+  /**
+   * Incremented whenever all previously issued sessions for this user
+   * should be invalidated (password change, explicit "sign out
+   * everywhere"). Session JWTs embed the tokenVersion they were issued
+   * with; getSession() rejects any token whose version doesn't match
+   * the current value here, even if the JWT signature is still valid.
+   */
+  tokenVersion: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +35,10 @@ const UserSchema = new Schema<IUser>(
     projects: {
       type: [String],
       default: [],
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
     },
   },
   {

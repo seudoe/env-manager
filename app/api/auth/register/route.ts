@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     await createSession({
       userId: user._id.toString(),
       username: user.username,
+      tokenVersion: user.tokenVersion ?? 0,
     });
 
     logger.info("auth/register", "Registration complete", { userId: user._id.toString(), username: user.username });

@@ -39,7 +39,22 @@ async function main() {
       process.exit(1);
     }
 
-    const data = await res.text();
+    let data = await res.text();
+
+    // Re-append credentials if the server's canonical content doesn't
+    // carry them (e.g. the default template's bookkeeping lines were
+    // cleaned up in the dashboard) — otherwise the next run of this
+    // same script would have nothing to authenticate with.
+    const hasProjectId = /^ENV_MANAGER_PROJECTID=/m.test(data);
+    const hasToken = /^ENV_MANAGER_TOKEN=/m.test(data);
+    if (!hasProjectId || !hasToken) {
+      const separator = data.length === 0 || data.endsWith("\n") ? "" : "\n";
+      data +=
+        separator +
+        (hasProjectId ? "" : `ENV_MANAGER_PROJECTID=${projectId}\n`) +
+        (hasToken ? "" : `ENV_MANAGER_TOKEN=${token}\n`);
+    }
+
     fs.writeFileSync(ENV_PATH, data, "utf-8");
     console.log("[env-manager] .env synced successfully.");
   } catch (err) {

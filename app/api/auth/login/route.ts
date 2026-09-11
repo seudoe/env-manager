@@ -31,6 +31,21 @@ export async function POST(request: NextRequest) {
 
     const usernameClean = username.trim().toLowerCase();
 
+    // getClientIp() trusts the client-supplied X-Forwarded-For header
+    // (see lib/rate-limit.ts), so the IP-based limit above can be
+    // sidestepped by sending a fresh spoofed value on every request.
+    // Keying a second bucket on the target username closes that gap:
+    // repeated guesses against the *same account* are throttled no
+    // matter what IP the request claims to come from.
+    const rlUser = rateLimit(`auth:login:user:${usernameClean}`, "auth");
+    if (!rlUser.success) {
+      logger.warn("auth/login", "Rate limited (per-account)", { username: usernameClean });
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     logger.info("auth/login", "Connecting to database...");
     await dbConnect();
 
@@ -58,6 +73,7 @@ export async function POST(request: NextRequest) {
     await createSession({
       userId: user._id.toString(),
       username: user.username,
+      tokenVersion: user.tokenVersion ?? 0,
     });
 
     logger.info("auth/login", "Login successful", { userId: user._id.toString(), username: user.username });

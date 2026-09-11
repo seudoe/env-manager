@@ -43,6 +43,7 @@ function AnimatedCount({ to }: { to: number }) {
 
 export default function DashboardPage() {
   const [projects, setProjects]     = useState<ProjectItem[]>([]);
+  const [stats, setStats] = useState({ totalVariables: 0, uniqueContributors: 0 });
   const [loading, setLoading]       = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -57,6 +58,7 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.projects) {
         setProjects(data.projects);
+        if (data.stats) setStats(data.stats);
         addToast(`Loaded ${data.projects.length} project(s).`, "info");
       }
     } catch {
@@ -99,9 +101,6 @@ export default function DashboardPage() {
     router.push(`/user/project/${project.projectId}`);
   };
 
-  const totalVars = projects.length * 12; // illustrative
-  const totalContributors = projects.length * 2;
-
   return (
     <div className="fade-up">
 
@@ -123,9 +122,9 @@ export default function DashboardPage() {
       {/* ── Stat Cards ───────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: "Projects",     val: projects.length,     glow: "#00c2ff", sub: "Active projects" },
-          { label: "Variables",    val: totalVars,           glow: "#22c55e", sub: "Across all projects" },
-          { label: "Contributors", val: totalContributors,   glow: "#3b82f6", sub: "Team members" },
+          { label: "Projects",     val: projects.length,           glow: "#00c2ff", sub: "Active projects" },
+          { label: "Variables",    val: stats.totalVariables,      glow: "#22c55e", sub: "Across all projects" },
+          { label: "Contributors", val: stats.uniqueContributors,  glow: "#3b82f6", sub: "Team members" },
         ].map((s, i) => (
           <div key={s.label} className="stat-card fade-up" style={{ animationDelay: `${i * 0.08}s` }}>
             <div className="stat-card-glow" style={{ background: s.glow, opacity: 0.12 }} />
