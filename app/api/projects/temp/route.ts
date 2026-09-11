@@ -1,14 +1,29 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import ProjectTemp from "@/models/ProjectTemp";
 import { generateTempProjectId, generateToken, hashToken, encryptData } from "@/lib/crypto";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
-export async function POST() {
-  logger.info("projects/temp", "Create temp project request");
+export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+  logger.info("projects/temp", "Create temp project request", { ip });
 
   try {
+    // This endpoint is intentionally unauthenticated (temp projects exist
+    // so people can try the tool without an account), which previously
+    // meant it was also the only unauthenticated write endpoint in the
+    // app with no rate limit at all — an unbounded number of permanent
+    // documents could be created for free. Combined with the TTL index
+    // on ProjectTemp (see models/ProjectTemp.ts) this keeps both the
+    // creation rate and the storage lifetime bounded.
+    const rl = rateLimit(`projects:temp:${ip}`, "default");
+    if (!rl.success) {
+      logger.warn("projects/temp", "Rate limited", { ip });
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+
     await dbConnect();
 
     // Generate credentials
@@ -26,7 +41,10 @@ ENV_MANAGER_TOKEN=${token}
 # ---------------------------------------------
 `;
 
-    const encryptedData = encryptData(defaultData, token);
+    // Encryption key is derived from projectId + AUTH_SECRET (see
+    // lib/crypto.ts), not from the token, so we no longer need to store
+    // the plaintext token to be able to decrypt later.
+    const encryptedData = encryptData(defaultData, projectId);
 
     logger.info("projects/temp", "Saving new temp project to database", { projectId });
 
@@ -42,7 +60,6 @@ ENV_MANAGER_TOKEN=${token}
         },
       ],
       tokenHash: tokenHash,
-      token, // the actual token is saved since this is un-owned and we need it to decrypt? Wait, we can't let users fetch the token. We need to save the token if we want to show it to the user. But we send it once to the frontend anyway.
     });
 
     logger.info("projects/temp", "Temp project created successfully", { projectId });

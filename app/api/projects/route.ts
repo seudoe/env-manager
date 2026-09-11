@@ -102,7 +102,10 @@ ENV_MANAGER_TOKEN=${token}
 # ---------------------------------------------
 `;
 
-    const encryptedData = encryptData(defaultEnv, token);
+    // Encryption key is derived from projectId + the server's AUTH_SECRET
+    // (see lib/crypto.ts), not from the token — so the token never needs
+    // to be persisted in plaintext to decrypt this project's data later.
+    const encryptedData = encryptData(defaultEnv, projectId);
 
     logger.info("projects", "Creating project in database", { projectId, projectName: projectName.trim(), ownerId: session.userId });
     const project = await Project.create({
@@ -117,7 +120,6 @@ ENV_MANAGER_TOKEN=${token}
         },
       ],
       tokenHash: tokenHashed,
-      token,
       ownerId: session.userId,
       ownerUsername: session.username,
       contributors: [],

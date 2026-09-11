@@ -16,17 +16,18 @@ export default function SettingsPage({
   const [project, setProject] = useState<{
     projectId: string;
     projectName: string;
-    token?: string;
     role: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showToken, setShowToken] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [showRotateConfirm, setShowRotateConfirm] = useState(false);
+  const [rotating, setRotating] = useState(false);
+  const [rotatedToken, setRotatedToken] = useState<string | null>(null);
   const router = useRouter();
   const { setCurrentProject } = useUser();
   const { addToast } = useToast();
@@ -102,6 +103,29 @@ export default function SettingsPage({
     }
   };
 
+  const handleRotate = async () => {
+    setRotating(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/rotate-token`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        addToast(data.error || "Failed to rotate token.", "error");
+        return;
+      }
+
+      setRotatedToken(data.token);
+      setShowRotateConfirm(false);
+      addToast("Token rotated. The old token no longer works.", "success");
+    } catch {
+      addToast("Something went wrong.", "error");
+    } finally {
+      setRotating(false);
+    }
+  };
+
   const isOwner = project?.role === "owner";
 
   if (loading) {
@@ -143,26 +167,46 @@ export default function SettingsPage({
       </div>
 
       {/* Project Token — owner only */}
-      {isOwner && project.token && (
+      {isOwner && (
         <div className="bg-bg-secondary border border-border-default rounded-xl p-5">
           <label className="block text-sm font-semibold text-text-primary mb-1">
             Project Token
           </label>
           <p className="text-xs text-text-muted mb-3">
-            Keep this secret. Anyone with the Project ID and Token can retrieve this project&apos;s environment.
+            Anyone with the Project ID and Token can retrieve this project&apos;s environment. For that reason
+            the token is only ever shown once — right after it&apos;s created or rotated — and can&apos;t be
+            viewed again afterward, even by you.
           </p>
-          <div className="flex items-center gap-3">
-            <code className="flex-1 px-3 py-2 bg-bg-input border border-border-default rounded-lg text-sm font-mono text-text-primary overflow-hidden">
-              {showToken ? project.token : "••••••••••••••••••••••••••"}
-            </code>
-            <button
-              onClick={() => setShowToken(!showToken)}
-              className="px-3 py-1.5 text-xs font-medium rounded-md bg-bg-tertiary text-text-secondary border border-border-default hover:bg-bg-hover hover:text-text-primary transition-colors"
-            >
-              {showToken ? "Hide" : "Show"}
-            </button>
-            <CopyButton text={project.token} />
-          </div>
+
+          {rotatedToken ? (
+            <>
+              <div className="flex items-center gap-3">
+                <code className="flex-1 px-3 py-2 bg-bg-input border border-border-default rounded-lg text-sm font-mono text-text-primary overflow-hidden">
+                  {rotatedToken}
+                </code>
+                <CopyButton text={rotatedToken} />
+              </div>
+              <div className="mt-3 p-3 rounded-lg bg-warning/5 border border-warning/15">
+                <p className="text-xs text-warning">
+                  Copy this now — it won&apos;t be shown again. Update it anywhere the old token was used
+                  (your local .env, CI secrets, etc.); the old token stopped working immediately.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-3">
+              <code className="flex-1 px-3 py-2 bg-bg-input border border-border-default rounded-lg text-sm font-mono text-text-muted">
+                ••••••••••••••••••••••••••
+              </code>
+              <button
+                onClick={() => setShowRotateConfirm(true)}
+                className="px-3 py-1.5 text-xs font-medium rounded-md bg-bg-tertiary text-text-secondary border border-border-default hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap"
+              >
+                Rotate Token
+              </button>
+            </div>
+          )}
+
           <div className="mt-3 p-3 rounded-lg bg-warning/5 border border-warning/15">
             <p className="text-xs text-warning flex items-start gap-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 mt-0.5">
@@ -170,7 +214,8 @@ export default function SettingsPage({
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
-              Keep your Project Token secret. Anyone with the Project ID and Token can retrieve this project&apos;s environment.
+              Rotate the token whenever you remove a contributor or suspect it has leaked — the old
+              token stops working the instant you rotate.
             </p>
           </div>
         </div>
@@ -250,6 +295,34 @@ export default function SettingsPage({
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Rotate Token Confirmation Modal */}
+      <Modal isOpen={showRotateConfirm} onClose={() => setShowRotateConfirm(false)} title="Rotate Project Token">
+        <div className="space-y-4">
+          <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+            <p className="text-sm text-warning">
+              This immediately invalidates the current token. Anything using it — your local .env,
+              CI, the CLI — will need to be updated with the new token before it can sync again.
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowRotateConfirm(false)}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-border-default text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRotate}
+              disabled={rotating}
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-accent-primary text-text-inverse hover:opacity-90 transition-all disabled:opacity-50"
+            >
+              {rotating ? "Rotating..." : "Rotate Token"}
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* Delete Confirmation Modal */}

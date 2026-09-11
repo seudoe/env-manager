@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
+import CopyButton from "@/components/ui/CopyButton";
 
 export default function TempProjectFilePage({
   params,
@@ -11,7 +12,27 @@ export default function TempProjectFilePage({
 }) {
   const { projectId } = use(params);
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  // Captured once, synchronously, from the initial URL. We deliberately
+  // don't keep reading searchParams.get("token") on every render, because
+  // the effect below strips ?token= from the address bar right after
+  // mount — the token itself is still needed for the rest of this page's
+  // API calls, so it lives in this state instead of the URL from here on.
+  const [token] = useState<string | null>(() => searchParams.get("token"));
+
+  useEffect(() => {
+    if (!token) return;
+    // A full-access credential sitting in the URL bar lingers in browser
+    // history, autocomplete, and (if the user ever clicks an outbound
+    // link from this page) the Referer header — and this page's own
+    // "save your URL" pattern actively encouraged copy-pasting it into
+    // chat/ticket systems. Clear it from the visible/bookmarkable URL as
+    // soon as we've captured it; the token itself stays available via
+    // React state for the rest of this session.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("token");
+    window.history.replaceState({}, "", url.pathname + url.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [data, setData] = useState("");
   const [originalData, setOriginalData] = useState("");
@@ -185,12 +206,30 @@ export default function TempProjectFilePage({
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
-          <div>
+          <div className="flex-1">
             <h3 className="text-sm font-semibold text-warning mb-1">Temporary Project</h3>
-            <p className="text-xs text-warning/80">
-              This is an un-owned project. Anyone with the Project ID and Token can edit it.
-              Make sure to save your URL: <span className="font-mono bg-warning/10 px-1.5 py-0.5 rounded ml-1 text-warning/90 break-all">{typeof window !== "undefined" ? window.location.href : ""}</span>
+            <p className="text-xs text-warning/80 mb-3">
+              This is an un-owned project. Anyone with the Project ID and Token can edit it — save
+              these two values somewhere safe (a password manager, not a chat message) so you can
+              come back. This page&apos;s URL no longer carries the token, so bookmarking it alone
+              won&apos;t be enough.
             </p>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] bg-warning/10 px-1.5 py-1 rounded text-warning/90 break-all flex-1">
+                  {projectId}
+                </span>
+                <CopyButton text={projectId} />
+              </div>
+              {token && (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[11px] bg-warning/10 px-1.5 py-1 rounded text-warning/90 break-all flex-1">
+                    {token}
+                  </span>
+                  <CopyButton text={token} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

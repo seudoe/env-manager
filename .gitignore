@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local test database (used for manual/local verification only)
+/.localdb
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
