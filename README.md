@@ -111,7 +111,7 @@ public/           → Bootstrap scripts (env-manager.js, env-manager.py)
 - **Token rotation** — Project owners can rotate a project's token at any time from Settings, instantly invalidating the old one — no re-encryption needed, since the encryption key isn't derived from the token. Rotate after removing a contributor or if a token may have leaked.
 - **Viewer-safe reads** — A project's `ENV_MANAGER_TOKEN` line (embedded in its own `.env` content for CLI bootstrap) is redacted for viewer-role reads, so a read-only collaborator can't use it to self-escalate to full API access.
 - Passwords hashed with bcrypt (12 rounds)
-- **Session revocation** — Sessions carry a `tokenVersion` checked against the database on every request. Changing your password immediately invalidates every previously issued session, not just the current cookie. `POST /api/auth/logout-all` does the same on demand (no dashboard button yet — call it directly if you need to sign out everywhere without changing your password).
+- **Session revocation** — Sessions carry a `tokenVersion` checked against the database on every request. Changing your password, or using **Sign Out Everywhere** on the Profile page, immediately invalidates every previously issued session — not just the current cookie.
 - HTTP-only, `SameSite=Lax` session cookies
 - Rate limiting on auth (per-IP and per-account), get-env (per-IP and per-project), and temporary-project creation
 - Temporary (un-owned) projects expire automatically after 7 days
