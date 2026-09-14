@@ -447,17 +447,69 @@ await testAsync("Writes server response to .env on success", async () => {
       "ENV_MANAGER_PROJECTID=envp_test\nENV_MANAGER_TOKEN=envt_test\n"
     );
 
-    // Mock fetch
+    // Mock fetch — response already carries the credential lines, as it
+    // would for a project whose dashboard content still has the default
+    // template's bookkeeping block intact.
     const originalFetch = global.fetch;
     global.fetch = async () => ({
       ok: true,
+      text: async () => "FOO=synced\nBAR=fromserver\nENV_MANAGER_PROJECTID=envp_test\nENV_MANAGER_TOKEN=envt_test\n",
+    });
+
+    try {
+      await runSync({ url: "https://env-manage.vercel.app", cwd: dir });
+      const content = fs.readFileSync(path.join(dir, ".env"), "utf-8");
+      assert.strictEqual(content, "FOO=synced\nBAR=fromserver\nENV_MANAGER_PROJECTID=envp_test\nENV_MANAGER_TOKEN=envt_test\n");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  } finally { cleanup(dir); }
+});
+
+// REGRESSION: reproduces a real bug found while testing the CLI end-to-end
+// against a live server. If a project's dashboard content doesn't carry the
+// ENV_MANAGER_PROJECTID/TOKEN bookkeeping lines (e.g. someone cleaned up the
+// default template — a completely normal thing to do), a plain overwrite of
+// .env with the server's response would erase those credentials locally too.
+// The *next* sync (including the one the bootstrap script runs automatically
+// before every `npm run dev`) would then have nothing to authenticate with
+// and fail outright. runSync must re-append the credentials it already read
+// so it can never sync itself out of working.
+await testAsync("REGRESSION: re-appends credentials when the server response omits them", async () => {
+  const dir = tmpDir();
+  try {
+    fs.writeFileSync(
+      path.join(dir, ".env"),
+      "ENV_MANAGER_PROJECTID=envp_test\nENV_MANAGER_TOKEN=envt_test\n"
+    );
+
+    const originalFetch = global.fetch;
+    global.fetch = async () => ({
+      ok: true,
+      // Simulates a user having edited their env content in the dashboard
+      // and removed the credential lines from it.
       text: async () => "FOO=synced\nBAR=fromserver\n",
     });
 
     try {
       await runSync({ url: "https://env-manage.vercel.app", cwd: dir });
       const content = fs.readFileSync(path.join(dir, ".env"), "utf-8");
-      assert.strictEqual(content, "FOO=synced\nBAR=fromserver\n");
+      assert.ok(content.includes("FOO=synced"));
+      assert.ok(content.includes("BAR=fromserver"));
+      assert.ok(content.includes("ENV_MANAGER_PROJECTID=envp_test"));
+      assert.ok(content.includes("ENV_MANAGER_TOKEN=envt_test"));
+
+      // And critically: a second sync must still succeed, since the .env
+      // this run produced still has valid credentials in it.
+      global.fetch = async () => ({
+        ok: true,
+        text: async () => "FOO=synced-again\n",
+      });
+      await runSync({ url: "https://env-manage.vercel.app", cwd: dir });
+      const secondContent = fs.readFileSync(path.join(dir, ".env"), "utf-8");
+      assert.ok(secondContent.includes("FOO=synced-again"));
+      assert.ok(secondContent.includes("ENV_MANAGER_PROJECTID=envp_test"));
+      assert.ok(secondContent.includes("ENV_MANAGER_TOKEN=envt_test"));
     } finally {
       global.fetch = originalFetch;
     }

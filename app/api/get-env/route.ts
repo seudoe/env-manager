@@ -30,6 +30,17 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
+    // The IP-based limit above can be sidestepped by an attacker who
+    // spoofs X-Forwarded-For per request (see lib/rate-limit.ts). Keying
+    // a second bucket on the target projectId means repeated token
+    // guesses against one specific project are throttled regardless of
+    // what IP they claim to come from.
+    const rlProject = rateLimit(`get-env:project:${projectId}`, "get-env");
+    if (!rlProject.success) {
+      logger.warn("get-env", "Rate limited (per-project)", { projectId });
+      return new NextResponse("Too many requests.", { status: 429 });
+    }
+
     logger.info("get-env", "Connecting to database...");
     await dbConnect();
 
@@ -68,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     let decryptedData = targetData;
     try {
-      decryptedData = decryptData(targetData, token);
+      decryptedData = decryptData(targetData, projectId);
     } catch (e) {
       logger.error("get-env", "Failed to decrypt data", { projectId, error: (e as Error).message });
       return new NextResponse("Failed to decrypt data.", { status: 500 });

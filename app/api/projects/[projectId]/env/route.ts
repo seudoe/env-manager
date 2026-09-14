@@ -7,6 +7,16 @@ import { encryptData, verifyToken } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
 
+// Commits are embedded sub-documents on the Project/ProjectTemp document
+// itself (see models/Project.ts), and every commit stores a full copy of
+// the env text. Without limits, an unbounded data size or an unbounded
+// number of commits eventually pushes the document past MongoDB's 16MB
+// BSON limit — after which point *every* save fails, including the
+// owner's, permanently bricking the project. These caps keep both
+// bounded well under that ceiling.
+const MAX_DATA_LENGTH = 256 * 1024; // 256KB — generous for a .env file
+const MAX_COMMITS = 50;
+
 // PUT — update environment data
 export async function PUT(
   request: NextRequest,
@@ -23,6 +33,13 @@ export async function PUT(
       const { data, commitId } = await request.json();
       if (typeof data !== "string") {
         return NextResponse.json({ error: "Environment data must be a string." }, { status: 400 });
+      }
+
+      if (data.length > MAX_DATA_LENGTH) {
+        return NextResponse.json(
+          { error: `Environment data exceeds the ${MAX_DATA_LENGTH / 1024}KB limit.` },
+          { status: 400 }
+        );
       }
 
       await dbConnect();
@@ -42,7 +59,7 @@ export async function PUT(
         );
       }
 
-      const encryptedData = encryptData(data, project.token);
+      const encryptedData = encryptData(data, project.projectId);
       project.commits[0].data = encryptedData;
       await project.save();
       return NextResponse.json({ success: true, updatedAt: project.updatedAt });
@@ -63,9 +80,17 @@ export async function PUT(
       );
     }
 
+    if (data.length > MAX_DATA_LENGTH) {
+      logger.warn("projects/[id]/env", "Data exceeds max length", { projectId, length: data.length });
+      return NextResponse.json(
+        { error: `Environment data exceeds the ${MAX_DATA_LENGTH / 1024}KB limit.` },
+        { status: 400 }
+      );
+    }
+
     await dbConnect();
-    
-    // We need the token to encrypt, so find the project first
+
+    // Find the project first (needed to key the encryption to its projectId)
     const project = await Project.findOne({ projectId });
     if (!project) {
       logger.warn("projects/[id]/env", "Project not found", { projectId });
@@ -99,8 +124,8 @@ export async function PUT(
     }
 
     logger.info("projects/[id]/env", "Encrypting and saving env data", { projectId, dataLength: data.length, userId: perm.userId });
-    
-    const encryptedData = encryptData(data, project.token);
+
+    const encryptedData = encryptData(data, project.projectId);
     project.commits[0].data = encryptedData;
     await project.save();
 
@@ -154,6 +179,12 @@ export async function POST(
         data: project.commits[0].data,
       });
 
+      // Cap retained history so the document can't grow without bound
+      // toward MongoDB's 16MB per-document limit (see MAX_COMMITS above).
+      if (project.commits.length > MAX_COMMITS) {
+        project.commits.splice(MAX_COMMITS);
+      }
+
       await project.save();
       return NextResponse.json({ success: true, newCommitId: project.commits[0].id });
     }
@@ -204,6 +235,12 @@ export async function POST(
       committedAt: null,
       data: project.commits[0].data,
     });
+
+    // Cap retained history so the document can't grow without bound
+    // toward MongoDB's 16MB per-document limit (see MAX_COMMITS above).
+    if (project.commits.length > MAX_COMMITS) {
+      project.commits.splice(MAX_COMMITS);
+    }
 
     await project.save();
 

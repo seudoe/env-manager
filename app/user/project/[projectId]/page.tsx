@@ -3,6 +3,13 @@
 import { useState, useEffect, use } from "react";
 import { useToast } from "@/components/ui/Toast";
 
+interface ConflictProjectSnapshot {
+  data?: string;
+  commitId?: string;
+  commits?: unknown[];
+  updatedAt?: string;
+}
+
 const roleBadge = (role: string) => {
   const styles: Record<string, string> = {
     owner: "bg-[rgba(0,194,255,0.08)] text-accent-primary border-[rgba(0,194,255,0.2)]",
@@ -33,7 +40,35 @@ export default function ProjectFilePage({
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [showCommitConfirmModal, setShowCommitConfirmModal] = useState(false);
   const [conflictLatestId, setConflictLatestId] = useState<string | null>(null);
+  const [conflictLatestData, setConflictLatestData] = useState<string | null>(null);
+  const [conflictLatestProject, setConflictLatestProject] = useState<ConflictProjectSnapshot | null>(null);
+  const [loadingConflictPreview, setLoadingConflictPreview] = useState(false);
   const { addToast } = useToast();
+
+  // A 409 tells us the commitId we're about to write on top of, but not
+  // what actually changed — "Sync to Latest" used to just repoint our
+  // local commitId and let the next Save silently overwrite whatever the
+  // other person committed, despite the modal's own wording implying some
+  // kind of merge happened. Fetch the real latest project state so the
+  // conflict modal can show it and the user can make an actual, informed
+  // choice.
+  const openConflictModal = async (latestCommitId: string) => {
+    setConflictLatestId(latestCommitId);
+    setConflictLatestData(null);
+    setConflictLatestProject(null);
+    setShowConflictModal(true);
+    setLoadingConflictPreview(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`);
+      const result = await res.json();
+      setConflictLatestData(result?.project?.data ?? "");
+      setConflictLatestProject(result?.project ?? null);
+    } catch {
+      setConflictLatestData(null);
+    } finally {
+      setLoadingConflictPreview(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}`)
@@ -67,11 +102,10 @@ export default function ProjectFilePage({
       const result = await res.json();
       
       if (res.status === 409) {
-        setConflictLatestId(result.latestCommitId);
-        setShowConflictModal(true);
+        await openConflictModal(result.latestCommitId);
         return;
       }
-      
+
       if (!res.ok) { addToast(result.error || "Failed to save.", "error"); return; }
       setOriginalData(data);
       setLastSaved(result.updatedAt);
@@ -129,11 +163,10 @@ export default function ProjectFilePage({
       
       if (res.status === 409) {
         setShowCommitConfirmModal(false);
-        setConflictLatestId(result.latestCommitId);
-        setShowConflictModal(true);
+        await openConflictModal(result.latestCommitId);
         return;
       }
-      
+
       if (!res.ok) { addToast(result.error || "Failed to commit.", "error"); return; }
       
       setCommitId(result.newCommitId);
@@ -152,6 +185,41 @@ export default function ProjectFilePage({
     } finally {
       setCommitting(false);
     }
+  };
+
+  const closeConflictModal = () => {
+    setShowConflictModal(false);
+    setConflictLatestId(null);
+    setConflictLatestData(null);
+    setConflictLatestProject(null);
+  };
+
+  // "Keep mine": move to the latest commit pointer but keep the local
+  // text as-is. The next Save will overwrite the server's latest content
+  // with what's in the editor now — that's a real, deliberate overwrite,
+  // not a merge, and the modal says so before this is reachable.
+  const resolveKeepMine = () => {
+    setCommitId(conflictLatestId);
+    closeConflictModal();
+    addToast("Keeping your version — Save will overwrite the newer one on the server.", "info");
+  };
+
+  // "Load latest": actually replace the editor with the server's current
+  // content, discarding the local unsaved edit. This is the one that's
+  // an actual sync — also refresh the commit history list and "last
+  // saved" timestamp from the same snapshot so the rest of the page
+  // isn't left showing stale state after this.
+  const resolveLoadLatest = () => {
+    if (conflictLatestData === null) return;
+    setData(conflictLatestData);
+    setOriginalData(conflictLatestData);
+    setCommitId(conflictLatestId);
+    if (conflictLatestProject) {
+      setCommits(conflictLatestProject.commits || []);
+      if (conflictLatestProject.updatedAt) setLastSaved(conflictLatestProject.updatedAt);
+    }
+    closeConflictModal();
+    addToast("Loaded the latest version. Your unsaved edits were discarded.", "info");
   };
 
   const canEdit = role === "owner" || role === "editor";
@@ -388,9 +456,9 @@ export default function ProjectFilePage({
 
       {/* Conflict Modal */}
       {showConflictModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
-          <div className="bg-bg-primary border border-border-default rounded-[12px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col scale-in">
-            <div className="px-5 py-4 border-b border-border-subtle bg-bg-secondary flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in p-4">
+          <div className="bg-bg-primary border border-border-default rounded-[12px] shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col scale-in">
+            <div className="px-5 py-4 border-b border-border-subtle bg-bg-secondary flex items-center justify-between shrink-0">
               <h3 className="text-base font-semibold text-text-primary flex items-center gap-2">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-warning">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -400,30 +468,47 @@ export default function ProjectFilePage({
                 Version Conflict
               </h3>
             </div>
-            <div className="p-5 text-sm text-text-secondary leading-relaxed">
-              <p className="mb-3">
-                Someone else has committed a new version while you were editing.
+            <div className="p-5 text-sm text-text-secondary leading-relaxed overflow-y-auto">
+              <p className="mb-4">
+                Someone else saved a newer version while you were editing. Pick one — this isn&apos;t a
+                merge, so whichever you choose replaces the other:
               </p>
-              <p>
-                If you choose to sync to the latest version, your local text will remain in the editor so you don't lose your work, but it will be tied to the newest version ID. You can then save your changes on top of it.
-              </p>
+              <div>
+                <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                  Latest version on the server
+                </h4>
+                <div className="bg-bg-input border border-border-default rounded-[8px] p-4 max-h-64 overflow-y-auto">
+                  {loadingConflictPreview ? (
+                    <div className="h-24 rounded shimmer" />
+                  ) : (
+                    <pre className="text-sm font-mono text-text-primary whitespace-pre-wrap">
+                      {conflictLatestData || "(Empty)"}
+                    </pre>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="px-5 py-4 border-t border-border-subtle bg-bg-secondary flex justify-end gap-3">
+            <div className="px-5 py-4 border-t border-border-subtle bg-bg-secondary flex flex-wrap justify-end gap-3 shrink-0">
               <button
-                onClick={() => setShowConflictModal(false)}
+                onClick={closeConflictModal}
                 className="px-4 py-2 text-sm font-medium text-text-primary hover:text-text-inverse hover:bg-bg-tertiary rounded-[6px] transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  setCommitId(conflictLatestId);
-                  setShowConflictModal(false);
-                  addToast("Synced to latest version ID. You can now save.", "info");
-                }}
-                className="px-4 py-2 text-sm font-medium bg-accent-primary text-text-inverse rounded-[6px] hover:opacity-90 transition-opacity shadow-sm"
+                onClick={resolveKeepMine}
+                className="px-4 py-2 text-sm font-medium text-warning border border-warning/30 bg-warning/10 rounded-[6px] hover:bg-warning/20 transition-colors"
+                title="Overwrite the version above with what's currently in your editor"
               >
-                Sync to Latest
+                Keep Mine (Overwrite)
+              </button>
+              <button
+                onClick={resolveLoadLatest}
+                disabled={loadingConflictPreview}
+                className="px-4 py-2 text-sm font-medium bg-accent-primary text-text-inverse rounded-[6px] hover:opacity-90 transition-opacity shadow-sm disabled:opacity-50"
+                title="Discard your unsaved edits and load the version above"
+              >
+                Load Latest (Discard Mine)
               </button>
             </div>
           </div>

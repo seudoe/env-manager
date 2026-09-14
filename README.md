@@ -40,7 +40,7 @@ Developer runs application
 - **Version Control & History** — Every save is committed as a new version. You can view the full commit history, see who made changes, and resolve edit conflicts cleanly.
 - **Temporary Projects** — Create and use un-owned `.env` projects instantly without making an account. Perfect for hackathons and quick sharing.
 - **Team Collaboration** — Add contributors to owned projects with specific editor or viewer roles.
-- **Military-grade Encryption** — Environment strings are encrypted at rest using AES-256-GCM. The encryption key is derived directly from your project token, meaning the server cannot read your data without it!
+- **Encrypted at Rest** — Environment strings are encrypted using AES-256-GCM, keyed by a server-held secret (`AUTH_SECRET`) rather than by your project token. A copy of the database alone — a backup, a leaked connection string — is not enough to decrypt project data.
 - **Works Everywhere** — JavaScript and Python bootstrap scripts. Compatible with Node.js, Docker, CI/CD, and any platform.
 
 ## Tech Stack
@@ -69,6 +69,12 @@ AUTH_SECRET=your-secret-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
+`AUTH_SECRET` must be at least 32 characters — it's used to sign session JWTs and to derive the data-encryption key, and the app will refuse to start without it (no fallback default). Generate one with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+```
+
 ### 3. Run the dev server
 
 ```bash
@@ -83,7 +89,7 @@ Register an account → Dashboard → **+ New Project** → Edit your `.env` in 
 
 ### 5. Connect your app
 
-Go to **Settings** to get your Project ID and Token, then visit the **[Connect page](/connect)** for setup instructions, bootstrap scripts, and deployment examples.
+Your Project ID and Token are shown once when the project is created (and again if you rotate the token from **Settings** later — copy it then, it isn't stored anywhere retrievable afterward). Visit the **[Connect page](/connect)** for setup instructions, bootstrap scripts, and deployment examples.
 
 ## Project Structure
 
@@ -92,7 +98,7 @@ app/              → Pages & API routes
 ├── api/          → Auth, projects, get-env endpoints
 ├── user/         → Dashboard, project editor, settings
 ├── connect/      → Public documentation
-lib/              → Server utilities (auth, crypto, permissions)
+lib/              → Server utilities (auth, crypto, permissions, secrets, redaction)
 models/           → Mongoose schemas (User, Project)
 components/       → Reusable UI components
 public/           → Bootstrap scripts (env-manager.js, env-manager.py)
@@ -100,15 +106,22 @@ public/           → Bootstrap scripts (env-manager.js, env-manager.py)
 
 ## Security
 
-- **Encrypted at Rest** — Environment data is encrypted in MongoDB using AES-256-GCM, keyed by your raw access token. If the database is compromised, the data remains unreadable.
+- **Encrypted at Rest** — Environment data is encrypted in MongoDB using AES-256-GCM, keyed by `projectId + AUTH_SECRET` — a secret that only lives in the server's environment, never in the database. A database-only compromise (a backup, a leaked connection string) is not enough to decrypt project data.
+- **No plaintext tokens stored** — Only a SHA-256 hash of each project token is persisted (`tokenHash`), compared with a timing-safe check. The plaintext token is shown once, at creation or rotation, and never stored or returned again.
+- **Token rotation** — Project owners can rotate a project's token at any time from Settings, instantly invalidating the old one — no re-encryption needed, since the encryption key isn't derived from the token. Rotate after removing a contributor or if a token may have leaked.
+- **Viewer-safe reads** — A project's `ENV_MANAGER_TOKEN` line (embedded in its own `.env` content for CLI bootstrap) is redacted for viewer-role reads, so a read-only collaborator can't use it to self-escalate to full API access.
 - Passwords hashed with bcrypt (12 rounds)
-- Project tokens hashed with SHA-256, timing-safe comparison
-- HTTP-only secure session cookies
-- Rate limiting on auth and get-env endpoints
+- **Session revocation** — Sessions carry a `tokenVersion` checked against the database on every request. Changing your password, or using **Sign Out Everywhere** on the Profile page, immediately invalidates every previously issued session — not just the current cookie.
+- HTTP-only, `SameSite=Lax` session cookies
+- Rate limiting on auth (per-IP and per-account), get-env (per-IP and per-project), and temporary-project creation
+- Temporary (un-owned) projects expire automatically after 7 days
+- Environment data is capped at 256KB per commit, with the 50 most recent commits retained per project
 - Server-side role-based authorization on every mutation
 - Anti-enumeration on the get-env API
+- Security response headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy) on every response
+- `AUTH_SECRET` is required — the app refuses to start without one at least 32 characters long; there is no fallback default
 
-> **Keep your Project Token secret.** Anyone with the Project ID and Token can retrieve the project's environment variables.
+> **Keep your Project Token secret.** Anyone with the Project ID and Token can retrieve the project's environment variables. If it may have leaked, rotate it from **Settings** immediately — the old token stops working the instant you do.
 
 ## Future Implementations
 

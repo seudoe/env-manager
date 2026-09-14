@@ -116,6 +116,11 @@ export default function ContributorsPage({
       }
 
       addToast(`Removed ${username}.`, "success");
+      // A removed contributor may have already seen this project's raw
+      // token (e.g. an editor, or a viewer added before token-redaction
+      // shipped) — the token keeps working until it's explicitly
+      // rotated, since /api/get-env authenticates on it alone.
+      addToast("For full security, rotate the project token in Settings — it isn't automatically revoked.", "info");
       setContributors((prev) => prev.filter((c) => c.userId !== userId));
     } catch {
       addToast("Something went wrong.", "error");

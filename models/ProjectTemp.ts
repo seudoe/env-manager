@@ -13,7 +13,6 @@ export interface IProjectTemp extends Document {
   projectName: string;
   commits: ICommit[];
   tokenHash: string;
-  token: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,15 +50,19 @@ const ProjectTempSchema = new Schema<IProjectTemp>(
       type: String,
       required: true,
     },
-    token: {
-      type: String,
-      required: true,
-    },
   },
   {
     timestamps: true,
   }
 );
+
+// Temporary projects are, by design, un-owned and meant for short-lived
+// use (e.g. trying the tool out before creating an account). Previously
+// nothing ever expired them, so an unauthenticated caller could create an
+// unbounded number of permanent rows via POST /api/projects/temp. Expire
+// them a week after creation; the CLI/UI already warn that this is a
+// temporary, un-owned project.
+ProjectTempSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 7 });
 
 export default mongoose.models.ProjectTemp ||
   mongoose.model<IProjectTemp>("ProjectTemp", ProjectTempSchema, "projects-temp");

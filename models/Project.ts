@@ -20,7 +20,6 @@ export interface IProject extends Document {
   data?: string; // Legacy field, to be migrated
   commits: ICommit[];
   tokenHash: string;
-  token: string;
   ownerId: string;
   ownerUsername: string;
   contributors: IContributor[];
@@ -71,10 +70,6 @@ const ProjectSchema = new Schema<IProject>(
       default: [],
     },
     tokenHash: {
-      type: String,
-      required: true,
-    },
-    token: {
       type: String,
       required: true,
     },
