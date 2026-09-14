@@ -44,3 +44,4 @@ next-env.d.ts
 AGENTS.md
 CLAUDE.md
 .playwright-mcp/
+android/

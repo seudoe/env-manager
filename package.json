@@ -10,6 +10,8 @@
     "env-manager": "node env-manager.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
     "bcryptjs": "^3.0.3",
     "geist": "^1.7.2",
     "jose": "^6.2.10",
@@ -19,6 +21,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
