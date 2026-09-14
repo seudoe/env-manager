@@ -244,6 +244,20 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-1">
             <Link href="/connect" className="px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors duration-150">Docs</Link>
             <Link href="/login" className="px-3 py-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors duration-150">Login</Link>
+            <div className="ml-3 mr-1 h-4 w-px bg-border-default" />
+            <button
+              onClick={handleCreateTemp}
+              disabled={creatingTemp}
+              className="nav-temp-btn px-3 py-1.5 text-sm font-medium rounded-[6px] border border-accent-primary/40 text-accent-primary bg-accent-primary/[0.08] hover:bg-accent-primary/[0.15] transition-all duration-150"
+            >
+              {creatingTemp ? "Creating…" : "⚡ Create Temp"}
+            </button>
+            <button
+              onClick={() => setShowOpenModal(true)}
+              className="nav-temp-btn px-3 py-1.5 text-sm font-medium rounded-[6px] border border-accent-primary/40 text-accent-primary bg-accent-primary/[0.08] hover:bg-accent-primary/[0.15] transition-all duration-150"
+            >
+              📂 Open Temp
+            </button>
             <Link href="/register" className="ml-2 px-3 py-1.5 text-sm font-medium rounded-[6px] bg-accent-primary text-text-inverse hover:opacity-90 transition-opacity duration-150">
               Get Started
             </Link>
@@ -286,20 +300,30 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-12 fade-up stagger-4">
-              <button 
-                onClick={handleCreateTemp}
-                disabled={creatingTemp}
-                className="px-4 py-2 text-xs font-medium rounded-[6px] bg-bg-tertiary text-text-secondary border border-border-default hover:bg-bg-hover hover:text-text-primary transition-all duration-150 flex items-center gap-2"
-              >
-                {creatingTemp ? "Creating..." : "Create a temporary project"}
-              </button>
-              <button 
-                onClick={() => setShowOpenModal(true)}
-                className="px-4 py-2 text-xs font-medium rounded-[6px] bg-bg-tertiary text-text-secondary border border-border-default hover:bg-bg-hover hover:text-text-primary transition-all duration-150"
-              >
-                Open a temporary project
-              </button>
+            {/* ── Temp Projects – the hero feature ────────────── */}
+            <div className="temp-feature-callout relative rounded-[10px] border border-accent-primary/30 bg-gradient-to-r from-accent-primary/[0.06] via-accent-primary/[0.03] to-transparent p-4 mb-6 fade-up stagger-4">
+              {/* Label */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-accent-primary animate-pulse-dot" />
+                <span className="text-xs font-semibold tracking-wide text-accent-primary uppercase">No sign-up needed — try instantly</span>
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <button 
+                  onClick={handleCreateTemp}
+                  disabled={creatingTemp}
+                  className="temp-hero-btn group px-5 py-2.5 text-sm font-semibold rounded-[8px] bg-accent-primary text-text-inverse hover:shadow-[0_0_24px_rgba(0,194,255,0.35)] active:translate-y-[-1px] transition-all duration-200 flex items-center gap-2"
+                >
+                  <span className="text-base">⚡</span>
+                  {creatingTemp ? "Creating..." : "Create Temporary Project"}
+                </button>
+                <button 
+                  onClick={() => setShowOpenModal(true)}
+                  className="temp-hero-btn px-5 py-2.5 text-sm font-semibold rounded-[8px] border border-accent-primary/50 text-accent-primary bg-accent-primary/[0.08] hover:bg-accent-primary/[0.15] hover:shadow-[0_0_20px_rgba(0,194,255,0.2)] active:translate-y-[-1px] transition-all duration-200 flex items-center gap-2"
+                >
+                  <span className="text-base">📂</span>
+                  Open Temporary Project
+                </button>
+              </div>
             </div>
 
             {/* Floating badges */}
