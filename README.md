@@ -18,7 +18,7 @@ Your application code stays untouched — `process.env.MONGODB_URI` continues to
 2. **Run Bootstrap** — A small script reads your project ID & token, fetches the canonical `.env`, and overwrites the local file.
 3. **App Starts Normally** — Your application reads `process.env` as usual. It never knows Env Manager exists.
 
-```
+```text
 Developer edits .env on dashboard
         ↓
   MongoDB stores it
@@ -40,8 +40,25 @@ Developer runs application
 - **Version Control & History** — Every save is committed as a new version. You can view the full commit history, see who made changes, and resolve edit conflicts cleanly.
 - **Temporary Projects** — Create and use un-owned `.env` projects instantly without making an account. Perfect for hackathons and quick sharing.
 - **Team Collaboration** — Add contributors to owned projects with specific editor or viewer roles.
-- **Encrypted at Rest** — Environment strings are encrypted using AES-256-GCM, keyed by a server-held secret (`AUTH_SECRET`) rather than by your project token. A copy of the database alone — a backup, a leaked connection string — is not enough to decrypt project data.
 - **Works Everywhere** — JavaScript and Python bootstrap scripts. Compatible with Node.js, Docker, CI/CD, and any platform.
+- **Dynamic Size Tracking** — Real-time tracking of exact uncompressed memory sizes (e.g., `[1.2KB]`) displayed on dashboards and editor headers.
+
+## Memory Architecture ("Single Blob")
+
+To minimize database costs and eliminate document bloat, Env Manager abandons standard MongoDB sub-document arrays in favor of a heavily optimized **Compressed Single Blob** engine.
+
+- **Reverse Delta Encoding**: Storing 50 commits of a 10KB `.env` file traditionally takes 500KB. Instead, the **latest** commit is always stored as a full plaintext snapshot for instant `O(1)` fetching. Historical commits are stored strictly as backwards-resolving patches.
+- **Zero-Context Stripped Patches**: Standard diff algorithms generate metadata (`Index: env`, `===`) that can be larger than tiny `.env` files. The engine computes patches with `{ context: 0 }` and strips all unified diff headers. A 1-line change to a 50-line file takes less than 20 bytes to store!
+- **Pristine Deduplication & The "Save vs. Commit" Compression**: When you "Save" an uncommitted change, the database briefly stores your new edits alongside the old snapshot, causing the file size to grow. But the moment you click "Commit", the garbage collector activates. It promotes your new edits to be the official snapshot, mathematically crushes the *old* snapshot into a tiny 20-byte delta patch, and collapses the live working copy to a completely empty `""` pointer. This results in a massive, instantaneous drop in total project size.
+- **Dynamic Node Deletion**: If you delete a historical commit, the engine dynamically recalculates a brand new direct patch bridging the gap between the surrounding commits, allowing you to seamlessly prune history without losing the timeline.
+- **Zlib Binary Deflation**: Before the JSON history array ever touches the database, it is compressed into a tiny binary buffer using Node.js's native `zlib.deflateSync`.
+
+## UX & Resilience
+
+- **Conflict Resolution (409 Handling)**: If two developers edit the same project simultaneously, the backend detects mismatched `workingCopyId` pointers. It intercepts the collision and provides an interactive modal to either **Keep Mine** or **Load Latest**, preventing silent data overwrites.
+- **Smart Editor Viewports**: The editor layout features a decoupled `h-[60vh] min-h-[400px]` independent scrolling window so users navigating massive configuration files don't have to scroll a marathon to reach commit history below.
+- **Mobile LAN Fallbacks**: Testing over local IP (e.g., `192.168.1.3`) disables `window.crypto` in non-HTTPS environments on mobile. The UI uses a resilient, Math-based fallback UUID generator ensuring Toasts and UI states don't crash on unencrypted internal networks.
+- **Persistent Preferences**: Features like the Temporary Project warning banner can be moved and customized. Preferences are saved in `localStorage` uniquely per `projectId` for a seamless workspace across reloads.
 
 ## Tech Stack
 
@@ -63,7 +80,7 @@ npm install
 
 Copy `.env.example` to `.env.local` and fill in:
 
-```
+```text
 MONGODB_URI=your-mongodb-connection-string
 AUTH_SECRET=your-secret-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -93,7 +110,7 @@ Your Project ID and Token are shown once when the project is created (and again 
 
 ## Project Structure
 
-```
+```text
 app/              → Pages & API routes
 ├── api/          → Auth, projects, get-env endpoints
 ├── user/         → Dashboard, project editor, settings
@@ -106,10 +123,12 @@ public/           → Bootstrap scripts (env-manager.js, env-manager.py)
 
 ## Security
 
-- **Encrypted at Rest** — Environment data is encrypted in MongoDB using AES-256-GCM, keyed by `projectId + AUTH_SECRET` — a secret that only lives in the server's environment, never in the database. A database-only compromise (a backup, a leaked connection string) is not enough to decrypt project data.
+Security is the highest priority. The database acts merely as a blind storage locker.
+
+- **Encrypted at Rest** — After compression, environment data is encrypted in MongoDB using **AES-256-GCM**, keyed by `projectId + AUTH_SECRET`. Even a database administrator cannot read the env data or determine how many commits a project has.
 - **No plaintext tokens stored** — Only a SHA-256 hash of each project token is persisted (`tokenHash`), compared with a timing-safe check. The plaintext token is shown once, at creation or rotation, and never stored or returned again.
-- **Token rotation** — Project owners can rotate a project's token at any time from Settings, instantly invalidating the old one — no re-encryption needed, since the encryption key isn't derived from the token. Rotate after removing a contributor or if a token may have leaked.
-- **Viewer-safe reads** — A project's `ENV_MANAGER_TOKEN` line (embedded in its own `.env` content for CLI bootstrap) is redacted for viewer-role reads, so a read-only collaborator can't use it to self-escalate to full API access.
+- **Token rotation** — Project owners can rotate a project's token at any time from Settings, instantly invalidating the old one — no re-encryption needed, since the encryption key isn't derived from the token.
+- **Viewer-safe reads (Clever Redaction)** — A project's `ENV_MANAGER_TOKEN` line (embedded in its own `.env` content for CLI bootstrap) is dynamically redacted for "Viewer" roles. This mathematically ensures a read-only collaborator cannot copy the token to use the external API and escalate their privileges.
 - Passwords hashed with bcrypt (12 rounds)
 - **Session revocation** — Sessions carry a `tokenVersion` checked against the database on every request. Changing your password, or using **Sign Out Everywhere** on the Profile page, immediately invalidates every previously issued session — not just the current cookie.
 - HTTP-only, `SameSite=Lax` session cookies

@@ -131,6 +131,47 @@ export function updateWorkingCopy(blob: BlobState, newText: string): BlobState {
   return blob;
 }
 
+export function deleteCommit(blob: BlobState, commitId: string): BlobState {
+  const idx = blob.commits.findIndex(c => c.id === commitId);
+  if (idx === -1) throw new Error("Commit not found");
+
+  const history = buildHistory(blob);
+  
+  // Realize working copy just in case it was relying on C[0] being deleted
+  const wcText = history[0].data;
+  blob.workingCopy = wcText;
+
+  if (idx === blob.commits.length - 1) {
+    // Oldest commit: just pop it
+    blob.commits.pop();
+  } else if (idx === 0) {
+    // Newest commit (snapshot): C[1] becomes the new snapshot
+    const c1 = blob.commits[1];
+    const t1 = history[2].data;
+    c1.type = 'snapshot';
+    c1.data = t1;
+    delete c1.patch;
+    blob.commits.splice(0, 1);
+  } else {
+    // Intermediate commit: C[idx] is removed. C[idx+1] patch needs to go from T(idx-1) to T(idx+1)
+    const t_prev = history[idx].data;   // T(idx-1)
+    const t_next = history[idx+2].data; // T(idx+1)
+    
+    const fullPatch = diff.createPatch("env", t_prev, t_next, "", "", { context: 0 });
+    const patchStr = fullPatch.split('\n').slice(4).join('\n');
+    
+    blob.commits[idx+1].patch = patchStr;
+    blob.commits.splice(idx, 1);
+  }
+  
+  // Re-deduplicate working copy if it matches the new snapshot
+  if (blob.commits.length > 0 && blob.commits[0].data === blob.workingCopy) {
+    blob.workingCopy = "";
+  }
+  
+  return blob;
+}
+
 export function createInitialBlob(initialText: string): BlobState {
   return {
     workingCopy: initialText,

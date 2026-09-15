@@ -56,11 +56,19 @@ export async function PUT(
     updateWorkingCopy(blobObj, data);
     
     console.log("\n\n=== DEBUG UNCOMPRESSED BLOB (PUT) ===");
-    console.log(JSON.stringify(blobObj, null, 2));
+    // console.log(JSON.stringify(blobObj, null, 2));
     console.log("=======================================\n\n");
 
-    project.dataBlob = encryptBlob(blobObj, project.projectId);
     const newSize = JSON.stringify(blobObj).length;
+    
+    if (newSize > 50 * 1024) {
+      return NextResponse.json({ 
+        error: "Storage limit reached (50KB). Please delete an older commit to save new changes.",
+        sizeLimitExceeded: true 
+      }, { status: 403 });
+    }
+
+    project.dataBlob = encryptBlob(blobObj, project.projectId);
     project.size = newSize;
     await project.save();
     
@@ -118,11 +126,19 @@ export async function POST(
     commitChanges(blobObj, newText, { device: deviceName, user: username });
     
     console.log("\n\n=== DEBUG UNCOMPRESSED BLOB (POST) ===");
-    console.log(JSON.stringify(blobObj, null, 2));
+    // console.log(JSON.stringify(blobObj, null, 2));
     console.log("========================================\n\n");
 
-    project.dataBlob = encryptBlob(blobObj, project.projectId);
     const newSize = JSON.stringify(blobObj).length;
+    
+    if (newSize > 50 * 1024) {
+      return NextResponse.json({ 
+        error: "Storage limit reached (50KB). Please delete an older commit to save new changes.",
+        sizeLimitExceeded: true 
+      }, { status: 403 });
+    }
+
+    project.dataBlob = encryptBlob(blobObj, project.projectId);
     project.size = newSize;
     await project.save();
 
