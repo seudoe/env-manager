@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useToast } from "@/components/ui/Toast";
+import { APP_LOGO } from "@/lib/config";
 
 interface ConflictProjectSnapshot {
   data?: string;
@@ -244,6 +245,8 @@ export default function ProjectFilePage({
         {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={APP_LOGO} alt="Env Manager" width={28} height={28} className="rounded-[6px]" />
           <h2 className="text-lg font-semibold text-text-primary tracking-tight">{projectName}</h2>
           {role && (
             <span className={`px-1.5 py-0.5 text-[10px] font-semibold tracking-widest uppercase rounded-[4px] border ${roleBadge(role)}`}>
@@ -373,6 +376,7 @@ export default function ProjectFilePage({
           ) : (
             commits.map((commit, index) => {
               const isWorking = index === 0;
+              const serialNumber = commits.length - index;
               const dateStr = commit.committedAt 
                 ? new Date(commit.committedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                 : "Uncommitted Working Copy";
@@ -389,6 +393,9 @@ export default function ProjectFilePage({
                 >
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-medium text-text-muted bg-bg-primary px-1.5 py-0.5 rounded border border-border-subtle">
+                        #{serialNumber}
+                      </span>
                       <span className={`text-sm font-mono font-medium ${isWorking ? "text-accent-primary" : "text-text-primary"}`}>
                         {commit.id ? commit.id.substring(0, 8) : "—"}
                       </span>

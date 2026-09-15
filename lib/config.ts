@@ -1,0 +1,1 @@
+export const APP_LOGO = "/logo-circle.png";

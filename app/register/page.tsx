@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/Toast";
+import { APP_LOGO } from "@/lib/config";
 
 export default function RegisterPage() {
   const [username, setUsername] = useState("");
@@ -75,7 +76,7 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center mb-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-rsqre.png" alt="Env Manager" width={36} height={36} className="rounded-[8px]" />
+            <img src={APP_LOGO} alt="Env Manager" width={36} height={36} className="rounded-[8px]" />
           </div>
           <h1 className="text-xl font-semibold text-text-primary tracking-tight">Create an account</h1>
           <p className="text-sm text-text-secondary mt-1">Get started with Env Manager</p>

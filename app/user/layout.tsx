@@ -20,7 +20,8 @@ export function useUser() {
   return ctx;
 }
 
-const LOGO_URL = "/logo.png";
+import { APP_LOGO } from "@/lib/config";
+const LOGO_URL = APP_LOGO;
 
 export default function UserLayout({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ id: string; username: string } | null>(null);

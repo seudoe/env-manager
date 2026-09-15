@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import CopyButton from "@/components/ui/CopyButton";
+import { APP_LOGO } from "@/lib/config";
 
 interface ConflictProjectSnapshot {
   data?: string;
@@ -26,16 +27,10 @@ export default function TempProjectFilePage({
   // version of this page stripped ?token= from the address bar right
   // after mount to reduce its exposure in browser history — but that broke
   // exactly that sharing flow: the URL a user actually copies is the
-  // already-stripped one, so reopening it elsewhere silently failed to
-  // load any data. Cross-origin leakage (the sharper risk — the token
-  // ending up in a third-party Referer header) is handled instead by the
-  // global `Referrer-Policy: no-referrer` header (see next.config.ts),
-  // which applies regardless of what's in the URL.
-  const token = searchParams.get("token");
-
   const [data, setData] = useState("");
   const [originalData, setOriginalData] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [committing, setCommitting] = useState(false);
@@ -52,18 +47,6 @@ export default function TempProjectFilePage({
   const [loadingConflictPreview, setLoadingConflictPreview] = useState(false);
   const { addToast } = useToast();
 
-  const headers = {
-    "Content-Type": "application/json",
-    ...(token ? { "x-env-manager-token": token } : {}),
-  };
-
-  // A 409 tells us the commitId we're about to write on top of, but not
-  // what actually changed — "Sync to Latest" used to just repoint our
-  // local commitId and let the next Save silently overwrite whatever was
-  // committed in the meantime, despite the modal's own wording implying
-  // some kind of merge happened. Fetch the real latest project state so
-  // the conflict modal can show it and the user can make an actual,
-  // informed choice.
   const openConflictModal = async (latestCommitId: string) => {
     setConflictLatestId(latestCommitId);
     setConflictLatestData(null);
@@ -71,7 +54,9 @@ export default function TempProjectFilePage({
     setShowConflictModal(true);
     setLoadingConflictPreview(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}`, { headers });
+      const res = await fetch(`/api/projects/${projectId}`, {
+        headers: token ? { "x-env-manager-token": token } : {},
+      });
       const result = await res.json();
       setConflictLatestData(result?.project?.data ?? "");
       setConflictLatestProject(result?.project ?? null);
@@ -83,14 +68,17 @@ export default function TempProjectFilePage({
   };
 
   useEffect(() => {
-    if (!token) {
-      addToast("No token provided in URL.", "error");
-      setLoading(false);
-      return;
-    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const pToken = urlParams.get("token");
+    setToken(pToken);
 
-    fetch(`/api/projects/${projectId}`, { headers })
-      .then((res) => res.json())
+    fetch(`/api/projects/${projectId}`, {
+      headers: pToken ? { "x-env-manager-token": pToken } : {},
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Not Found");
+        return res.json();
+      })
       .then((result) => {
         if (result.project) {
           setData(result.project.data || "");
@@ -101,21 +89,22 @@ export default function TempProjectFilePage({
           if (result.project.updatedAt) {
             setLastSaved(result.project.updatedAt);
           }
-          addToast(`Loaded ${result.project.projectName}.`, "info");
-        } else {
-          addToast(result.error || "Failed to load project.", "error");
+          addToast("Loaded temporary project.", "info");
         }
       })
-      .catch(() => addToast("Failed to load project.", "error"))
+      .catch(() => addToast("Failed to load project or invalid token.", "error"))
       .finally(() => setLoading(false));
-  }, [projectId, token, addToast]);
+  }, [projectId, addToast]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const res = await fetch(`/api/projects/${projectId}/env`, {
         method: "PUT",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "x-env-manager-token": token } : {}),
+        },
         body: JSON.stringify({ data, commitId }),
       });
       const result = await res.json();
@@ -139,7 +128,9 @@ export default function TempProjectFilePage({
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const res = await fetch(`/api/projects/${projectId}`, { headers });
+      const res = await fetch(`/api/projects/${projectId}`, {
+        headers: token ? { "x-env-manager-token": token } : {},
+      });
       const result = await res.json();
       if (result.project) {
         if (result.project.commitId !== commitId) {
@@ -175,7 +166,10 @@ export default function TempProjectFilePage({
     try {
       const res = await fetch(`/api/projects/${projectId}/env`, {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "x-env-manager-token": token } : {}),
+        },
         body: JSON.stringify({ commitId }),
       });
       const result = await res.json();
@@ -191,7 +185,9 @@ export default function TempProjectFilePage({
       setCommitId(result.newCommitId);
       
       // Refresh commits list silently
-      const refreshRes = await fetch(`/api/projects/${projectId}`, { headers });
+      const refreshRes = await fetch(`/api/projects/${projectId}`, {
+        headers: token ? { "x-env-manager-token": token } : {},
+      });
       const refreshData = await refreshRes.json();
       if (refreshData.project) {
         setCommits(refreshData.project.commits || []);
@@ -241,11 +237,12 @@ export default function TempProjectFilePage({
     addToast("Loaded the latest version. Your unsaved edits were discarded.", "info");
   };
 
+  const isWorking = true;
   const hasChanges = data !== originalData;
 
   if (loading) {
     return (
-      <div className="p-6 md:p-8 space-y-3 fade-in max-w-[1200px] mx-auto min-h-[100dvh] bg-bg-primary">
+      <div className="space-y-3 p-6 md:p-8 fade-in">
         <div className="h-7 w-40 rounded-[6px] shimmer" />
         <div className="h-[480px] rounded-[8px] shimmer" />
       </div>
@@ -295,6 +292,8 @@ export default function TempProjectFilePage({
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={APP_LOGO} alt="Env Manager" width={28} height={28} className="rounded-[6px]" />
             <h2 className="text-lg font-semibold text-text-primary tracking-tight">{projectName}</h2>
             <span className="px-1.5 py-0.5 text-[10px] font-semibold tracking-widest uppercase rounded-[4px] border bg-[rgba(34,197,94,0.08)] text-success border-[rgba(34,197,94,0.2)]">
               Editor
@@ -408,6 +407,7 @@ export default function TempProjectFilePage({
             ) : (
               commits.map((commit, index) => {
                 const isWorking = index === 0;
+                const serialNumber = commits.length - index;
                 const dateStr = commit.committedAt 
                   ? new Date(commit.committedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                   : "Uncommitted Working Copy";
@@ -424,6 +424,9 @@ export default function TempProjectFilePage({
                   >
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-medium text-text-muted bg-bg-primary px-1.5 py-0.5 rounded border border-border-subtle">
+                          #{serialNumber}
+                        </span>
                         <span className={`text-sm font-mono font-medium ${isWorking ? "text-accent-primary" : "text-text-primary"}`}>
                           {commit.id ? commit.id.substring(0, 8) : "—"}
                         </span>

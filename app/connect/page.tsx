@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ConnectDocs from "@/components/connect/ConnectDocs";
+import { APP_LOGO } from "@/lib/config";
 
 export const metadata = {
   title: "Connect — Env Manager",
@@ -14,7 +15,7 @@ export default function PublicConnectPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Env Manager" width={32} height={32} className="rounded-[7px]" />
+            <img src={APP_LOGO} alt="Env Manager" width={32} height={32} className="rounded-[7px]" />
             <span className="text-lg font-bold text-text-primary">Env Manager</span>
           </Link>
           <div className="flex items-center gap-3">
