@@ -45,6 +45,7 @@ export default function TempProjectFilePage({
   const [conflictLatestData, setConflictLatestData] = useState<string | null>(null);
   const [conflictLatestProject, setConflictLatestProject] = useState<ConflictProjectSnapshot | null>(null);
   const [loadingConflictPreview, setLoadingConflictPreview] = useState(false);
+  const [isWarningAtBottom, setIsWarningAtBottom] = useState(false);
   const { addToast } = useToast();
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -67,6 +68,23 @@ export default function TempProjectFilePage({
       setConflictLatestData(null);
     } finally {
       setLoadingConflictPreview(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(`warning-bottom-${projectId}`);
+      if (stored === "true") setIsWarningAtBottom(true);
+    }
+  }, [projectId]);
+
+  const toggleWarning = () => {
+    const newState = !isWarningAtBottom;
+    setIsWarningAtBottom(newState);
+    if (newState) {
+      localStorage.setItem(`warning-bottom-${projectId}`, "true");
+    } else {
+      localStorage.removeItem(`warning-bottom-${projectId}`);
     }
   };
 
@@ -256,41 +274,55 @@ export default function TempProjectFilePage({
     ? new Date(lastSaved).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
     : null;
 
+  const warningBanner = (
+    <div className={`relative mb-6 p-4 rounded-[8px] bg-warning/10 border border-warning/20 flex items-start gap-3 ${isWarningAtBottom ? 'mt-8' : ''}`}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-warning shrink-0 mt-0.5">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      <div className="flex-1 pr-6">
+        <h3 className="text-sm font-semibold text-warning mb-1">Temporary Project</h3>
+        <p className="text-xs text-warning/80 mb-3">
+          This is an un-owned project. Anyone with this page&apos;s URL — or the Project ID and
+          Token below — can edit it. Save the URL or the values below somewhere safe so you can
+          come back; if you share this link with someone, know that they&apos;ll have full access.
+        </p>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] bg-warning/10 px-1.5 py-1 rounded text-warning/90 break-all flex-1">
+              {projectId}
+            </span>
+            <CopyButton text={projectId} />
+          </div>
+          {token && (
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] bg-warning/10 px-1.5 py-1 rounded text-warning/90 break-all flex-1">
+                {token}
+              </span>
+              <CopyButton text={token} />
+            </div>
+          )}
+        </div>
+      </div>
+      <button
+        onClick={toggleWarning}
+        className="absolute top-3 right-3 text-warning/60 hover:text-warning bg-warning/5 hover:bg-warning/10 p-1.5 rounded transition-colors"
+        title={isWarningAtBottom ? "Move to top" : "Move to bottom"}
+      >
+        {isWarningAtBottom ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 15l-6-6-6 6"/></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+        )}
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-[100dvh] bg-bg-primary text-text-primary p-6 md:p-8">
       <div className="max-w-[1200px] mx-auto fade-in">
-        {/* Warning Banner */}
-        <div className="mb-6 p-4 rounded-[8px] bg-warning/10 border border-warning/20 flex items-start gap-3">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-warning shrink-0 mt-0.5">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-warning mb-1">Temporary Project</h3>
-            <p className="text-xs text-warning/80 mb-3">
-              This is an un-owned project. Anyone with this page&apos;s URL — or the Project ID and
-              Token below — can edit it. Save the URL or the values below somewhere safe so you can
-              come back; if you share this link with someone, know that they&apos;ll have full access.
-            </p>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] bg-warning/10 px-1.5 py-1 rounded text-warning/90 break-all flex-1">
-                  {projectId}
-                </span>
-                <CopyButton text={projectId} />
-              </div>
-              {token && (
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] bg-warning/10 px-1.5 py-1 rounded text-warning/90 break-all flex-1">
-                    {token}
-                  </span>
-                  <CopyButton text={token} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {!isWarningAtBottom && warningBanner}
 
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
@@ -383,7 +415,7 @@ export default function TempProjectFilePage({
             </div>
             <span className="text-[11px] text-text-muted font-mono ml-2">.env</span>
           </div>
-          <div className="flex relative bg-bg-primary">
+          <div className="flex relative bg-bg-primary h-[60vh] min-h-[400px]">
             {/* Line Numbers */}
             <div 
               ref={lineNumbersRef}
@@ -401,8 +433,7 @@ export default function TempProjectFilePage({
               value={data}
               onChange={(e) => setData(e.target.value)}
               spellCheck={false}
-              className="env-editor flex-1 !border-0 !rounded-none !shadow-none !ring-0"
-              style={{ minHeight: "420px" }}
+              className="env-editor flex-1 !border-0 !rounded-none !shadow-none !ring-0 resize-none h-full"
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === "s") {
                   e.preventDefault();
@@ -470,6 +501,7 @@ export default function TempProjectFilePage({
             )}
           </div>
         </div>
+        {isWarningAtBottom && warningBanner}
       </div>
 
       {/* Commit Detail Modal */}

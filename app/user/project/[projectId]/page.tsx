@@ -351,7 +351,7 @@ export default function ProjectFilePage({
             </span>
           )}
         </div>
-        <div className="flex relative bg-bg-primary">
+        <div className="flex relative bg-bg-primary h-[60vh] min-h-[400px]">
           {/* Line Numbers */}
           <div 
             ref={lineNumbersRef}
@@ -370,8 +370,7 @@ export default function ProjectFilePage({
             onChange={(e) => setData(e.target.value)}
             readOnly={!canEdit}
             spellCheck={false}
-            className="env-editor flex-1 !border-0 !rounded-none !shadow-none !ring-0"
-            style={{ minHeight: "420px" }}
+            className="env-editor flex-1 !border-0 !rounded-none !shadow-none !ring-0 resize-none h-full"
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === "s") {
                 e.preventDefault();
