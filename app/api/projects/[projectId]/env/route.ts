@@ -146,6 +146,8 @@ export async function POST(
   logger.info("projects/[id]/env", "Commit env data request", { projectId });
 
   try {
+    const deviceName = request.headers.get("user-agent") || "Unknown Device";
+
     if (projectId.startsWith("envpt_")) {
       const token = request.headers.get("x-env-manager-token");
       if (!token) return NextResponse.json({ error: "Missing token" }, { status: 401 });
@@ -169,12 +171,12 @@ export async function POST(
         );
       }
 
-      project.commits[0].committedBy = "Anonymous";
+      project.commits[0].device = deviceName;
       project.commits[0].committedAt = new Date();
 
       project.commits.unshift({
         id: crypto.randomBytes(16).toString("hex"),
-        committedBy: null,
+        device: null,
         committedAt: null,
         data: project.commits[0].data,
       });
@@ -206,6 +208,8 @@ export async function POST(
       if (!Array.isArray(project.commits)) project.commits = [];
       project.commits.push({
         id: crypto.randomBytes(16).toString("hex"),
+        user: null,
+        device: null,
         committedBy: null,
         committedAt: null,
         data: project.data,
@@ -225,12 +229,16 @@ export async function POST(
     }
 
     // Turn the current working copy into history
-    project.commits[0].committedBy = perm.username || "Unknown";
+    project.commits[0].user = perm.username || "Unknown";
+    project.commits[0].device = deviceName;
+    project.commits[0].committedBy = perm.username || "Unknown"; // backward compat
     project.commits[0].committedAt = new Date();
 
     // Push a new working copy to the front
     project.commits.unshift({
       id: crypto.randomBytes(16).toString("hex"),
+      user: null,
+      device: null,
       committedBy: null,
       committedAt: null,
       data: project.commits[0].data,

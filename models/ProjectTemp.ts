@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface ICommit {
   id: string;
-  committedBy: string | null;
+  device: string | null;
   committedAt: Date | null;
   data: string;
 }
@@ -37,7 +37,7 @@ const ProjectTempSchema = new Schema<IProjectTemp>(
         new Schema<ICommit>(
           {
             id: { type: String, required: true },
-            committedBy: { type: String, default: null },
+            device: { type: String, default: null },
             committedAt: { type: Date, default: null },
             data: { type: String, required: true },
           },

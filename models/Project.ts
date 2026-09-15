@@ -8,7 +8,9 @@ export interface IContributor {
 
 export interface ICommit {
   id: string;
-  committedBy: string | null;
+  device: string | null;
+  user: string | null;
+  committedBy: string | null; // legacy
   committedAt: Date | null;
   data: string;
 }
@@ -60,7 +62,9 @@ const ProjectSchema = new Schema<IProject>(
         new Schema<ICommit>(
           {
             id: { type: String, required: true },
-            committedBy: { type: String, default: null },
+            device: { type: String, default: null },
+            user: { type: String, default: null },
+            committedBy: { type: String, default: null }, // legacy
             committedAt: { type: Date, default: null },
             data: { type: String, required: true },
           },

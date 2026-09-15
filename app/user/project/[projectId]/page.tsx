@@ -425,8 +425,15 @@ export default function ProjectFilePage({
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end text-xs text-text-muted">
-                    <span className="font-medium text-text-secondary">{commit.committedBy || "—"}</span>
+                  <div className="flex flex-col items-end text-xs text-text-muted gap-0.5">
+                    {(commit.user || commit.committedBy || commit.device) && (
+                      <span 
+                        className="font-medium text-text-secondary truncate max-w-[150px] sm:max-w-[300px]"
+                        title={[commit.user || commit.committedBy, commit.device].filter(Boolean).join(" • ")}
+                      >
+                        {[commit.user || commit.committedBy, commit.device].filter(Boolean).join(" • ")}
+                      </span>
+                    )}
                     <span>{dateStr}</span>
                   </div>
                 </div>
@@ -455,12 +462,20 @@ export default function ProjectFilePage({
               </button>
             </div>
             <div className="p-5 flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-border-subtle text-sm">
-                <div>
-                  <span className="text-text-muted">Committed by: </span>
-                  <span className="font-medium text-text-primary">{selectedCommit.committedBy}</span>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4 pb-4 border-b border-border-subtle text-sm">
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                  <div>
+                    <span className="text-text-muted">Committed by: </span>
+                    <span className="font-medium text-text-primary">{selectedCommit.user || selectedCommit.committedBy || "—"}</span>
+                  </div>
+                  {selectedCommit.device && (
+                    <div className="pr-4">
+                      <span className="text-text-muted">Device: </span>
+                      <span className="font-medium text-text-primary break-all sm:break-words">{selectedCommit.device}</span>
+                    </div>
+                  )}
                 </div>
-                <div>
+                <div className="shrink-0">
                   <span className="text-text-muted">Date: </span>
                   <span className="font-medium text-text-primary">
                     {new Date(selectedCommit.committedAt).toLocaleString()}

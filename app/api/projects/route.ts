@@ -172,7 +172,9 @@ ENV_MANAGER_TOKEN=${token}
       commits: [
         {
           id: crypto.randomBytes(16).toString("hex"),
-          committedBy: null,
+          user: null,
+          device: null,
+          committedBy: null, // backward compat
           committedAt: null,
           data: encryptedData,
         },

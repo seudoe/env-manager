@@ -40,7 +40,7 @@ export async function GET(
         }
         return {
           id: c.id,
-          committedBy: c.committedBy,
+          device: c.device,
           committedAt: c.committedAt,
           data: dec,
         };
@@ -101,6 +101,8 @@ export async function GET(
       }
       return {
         id: c.id,
+        user: c.user,
+        device: c.device,
         committedBy: c.committedBy,
         committedAt: c.committedAt,
         data: dec,
@@ -117,7 +119,7 @@ export async function GET(
     // the real token.
     const visibleCommits =
       perm.role === "viewer"
-        ? commits.map((c: { id: string; committedBy: string | null; committedAt: Date | null; data: string }) => ({
+        ? commits.map((c: { id: string; user?: string | null; device?: string | null; committedBy?: string | null; committedAt: Date | null; data: string }) => ({
             ...c,
             data: redactProjectTokenForViewer(c.data),
           }))
