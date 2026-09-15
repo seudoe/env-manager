@@ -3,7 +3,8 @@ import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import ProjectTemp from "@/models/ProjectTemp";
 import { checkProjectPermission } from "@/lib/permissions";
-import { decryptData, verifyToken } from "@/lib/crypto";
+import { decryptBlob, verifyToken } from "@/lib/crypto";
+import { buildHistory } from "@/lib/history";
 import { redactProjectTokenForViewer } from "@/lib/redact";
 import { logger } from "@/lib/logger";
 import crypto from "crypto";
@@ -27,24 +28,12 @@ export async function GET(
          return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
 
-      if (!Array.isArray(project.commits) || project.commits.length === 0) {
-        return NextResponse.json({ error: "Project has no commits." }, { status: 404 });
+      if (!project.dataBlob) {
+        return NextResponse.json({ error: "Project has no data." }, { status: 404 });
       }
 
-      const commits = project.commits.map((c: any) => {
-        let dec = c.data;
-        try {
-          dec = decryptData(c.data, project.projectId);
-        } catch (e) {
-          // Ignore
-        }
-        return {
-          id: c.id,
-          device: c.device,
-          committedAt: c.committedAt,
-          data: dec,
-        };
-      });
+      const blobObj = decryptBlob(project.dataBlob, project.projectId);
+      const commits = buildHistory(blobObj);
 
       return NextResponse.json({ 
         project: {
@@ -58,6 +47,7 @@ export async function GET(
         }
       });
     }
+
     const perm = await checkProjectPermission(projectId, "viewer");
     if (!perm.allowed) {
       logger.warn("projects/[id]", "Access denied", { projectId, userId: perm.userId, role: perm.role });
@@ -72,42 +62,12 @@ export async function GET(
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
-    // Schema Migration: if it's an old project with data but no commits, migrate it.
-    const hasCommits = Array.isArray(project.commits) && project.commits.length > 0;
-    if (!hasCommits && project.data) {
-      if (!Array.isArray(project.commits)) project.commits = [];
-      project.commits.push({
-        id: crypto.randomBytes(16).toString("hex"),
-        committedBy: null,
-        committedAt: null,
-        data: project.data,
-      });
-      project.data = undefined;
-      await project.save();
+    if (!project.dataBlob) {
+      return NextResponse.json({ error: "Project has no data." }, { status: 404 });
     }
 
-    if (!Array.isArray(project.commits) || project.commits.length === 0) {
-      return NextResponse.json({ error: "Project has no commits." }, { status: 404 });
-    }
-
-    const latestCommit = project.commits[0];
-
-    const commits = project.commits.map((c: any) => {
-      let dec = c.data;
-      try {
-        dec = decryptData(c.data, project.projectId);
-      } catch (e) {
-        // Ignore
-      }
-      return {
-        id: c.id,
-        user: c.user,
-        device: c.device,
-        committedBy: c.committedBy,
-        committedAt: c.committedAt,
-        data: dec,
-      };
-    });
+    const blobObj = decryptBlob(project.dataBlob, project.projectId);
+    const commits = buildHistory(blobObj);
 
     // Viewers have read-only access by design, but the env content often
     // contains this project's own ENV_MANAGER_TOKEN line — which, unlike
@@ -119,7 +79,7 @@ export async function GET(
     // the real token.
     const visibleCommits =
       perm.role === "viewer"
-        ? commits.map((c: { id: string; user?: string | null; device?: string | null; committedBy?: string | null; committedAt: Date | null; data: string }) => ({
+        ? commits.map((c) => ({
             ...c,
             data: redactProjectTokenForViewer(c.data),
           }))
@@ -135,13 +95,6 @@ export async function GET(
       role: perm.role,
       updatedAt: project.updatedAt,
     };
-
-    // The project token itself is no longer persisted in plaintext (see
-    // models/Project.ts) and is therefore never returned here, even to
-    // the owner — it's shown once at creation time, and from then on the
-    // owner must use POST /api/projects/[projectId]/rotate-token to get a
-    // fresh one if it's lost. This means a database read alone can no
-    // longer yield a working credential.
 
     logger.info("projects/[id]", "Project details returned", { projectId, role: perm.role });
     return NextResponse.json({ project: response });

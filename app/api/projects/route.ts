@@ -3,9 +3,9 @@ import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import User from "@/models/User";
 import { getSession } from "@/lib/auth";
-import { generateProjectId, generateToken, hashToken, encryptData, decryptData } from "@/lib/crypto";
+import { generateProjectId, generateToken, hashToken, encryptData, decryptData, encryptBlob, decryptBlob } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
-import crypto from "crypto";
+import { createInitialBlob } from "@/lib/history";
 
 // Lines the app itself writes into every project's .env for CLI
 // bootstrapping (see the defaultEnv template below) — not variables the
@@ -39,14 +39,14 @@ export async function GET() {
 
     logger.info("projects", "Fetching owned projects", { userId: session.userId });
     const ownedProjects = await Project.find({ ownerId: session.userId })
-      .select("projectId projectName ownerId ownerUsername updatedAt commits data contributors")
+      .select("projectId projectName ownerId ownerUsername updatedAt dataBlob data contributors")
       .sort({ updatedAt: -1 });
 
     logger.info("projects", "Fetching contributed projects", { userId: session.userId });
     const contributedProjects = await Project.find({
       "contributors.userId": session.userId,
     })
-      .select("projectId projectName ownerId ownerUsername contributors updatedAt commits data")
+      .select("projectId projectName ownerId ownerUsername contributors updatedAt dataBlob data")
       .sort({ updatedAt: -1 });
 
     // Dashboard stat cards previously showed projects.length * 12 and
@@ -56,14 +56,18 @@ export async function GET() {
     // actually in each project's current working copy (decrypted here,
     // not returned — only the count is), and how many distinct people
     // the current user has added as contributors on projects they own.
-    const variableCountFor = (p: { projectId: string; commits?: { data: string }[]; data?: string }): number => {
-      const raw = p.commits?.[0]?.data ?? p.data;
-      if (!raw) return 0;
+    const variableCountFor = (p: any): number => {
       try {
-        return countEnvVariables(decryptData(raw, p.projectId));
+        if (p.dataBlob) {
+          const blob = decryptBlob(p.dataBlob, p.projectId);
+          return countEnvVariables(blob.workingCopy || "");
+        } else if (p.data) {
+          return countEnvVariables(decryptData(p.data, p.projectId));
+        }
       } catch {
         return 0;
       }
+      return 0;
     };
 
     const owned = ownedProjects.map((p) => ({
@@ -163,22 +167,14 @@ ENV_MANAGER_TOKEN=${token}
     // Encryption key is derived from projectId + the server's AUTH_SECRET
     // (see lib/crypto.ts), not from the token — so the token never needs
     // to be persisted in plaintext to decrypt this project's data later.
-    const encryptedData = encryptData(defaultEnv, projectId);
+    const initialBlob = createInitialBlob(defaultEnv);
+    const encryptedDataBlob = encryptBlob(initialBlob, projectId);
 
     logger.info("projects", "Creating project in database", { projectId, projectName: projectName.trim(), ownerId: session.userId });
     const project = await Project.create({
       projectId,
       projectName: projectName.trim(),
-      commits: [
-        {
-          id: crypto.randomBytes(16).toString("hex"),
-          user: null,
-          device: null,
-          committedBy: null, // backward compat
-          committedAt: null,
-          data: encryptedData,
-        },
-      ],
+      dataBlob: encryptedDataBlob,
       tokenHash: tokenHashed,
       ownerId: session.userId,
       ownerUsername: session.username,

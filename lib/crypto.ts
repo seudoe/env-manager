@@ -115,3 +115,25 @@ export function decryptData(ciphertext: string, projectId: string): string {
 
   return decrypted;
 }
+import zlib from "zlib";
+
+export function encryptBlob(obj: any, projectId: string): string {
+  const jsonStr = JSON.stringify(obj);
+  const compressed = zlib.deflateSync(jsonStr).toString("base64");
+  return encryptData(compressed, projectId);
+}
+
+export function decryptBlob(ciphertext: string, projectId: string): any {
+  if (!ciphertext) return null;
+  const decrypted = decryptData(ciphertext, projectId);
+  try {
+    const inflated = zlib.inflateSync(Buffer.from(decrypted, "base64")).toString("utf8");
+    return JSON.parse(inflated);
+  } catch (e) {
+    try {
+      return JSON.parse(decrypted);
+    } catch {
+      return decrypted;
+    }
+  }
+}

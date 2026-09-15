@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import ProjectTemp from "@/models/ProjectTemp";
-import { generateTempProjectId, generateToken, hashToken, encryptData } from "@/lib/crypto";
+import { generateTempProjectId, generateToken, hashToken, encryptBlob } from "@/lib/crypto";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { createInitialBlob } from "@/lib/history";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -44,21 +45,15 @@ ENV_MANAGER_TOKEN=${token}
     // Encryption key is derived from projectId + AUTH_SECRET (see
     // lib/crypto.ts), not from the token, so we no longer need to store
     // the plaintext token to be able to decrypt later.
-    const encryptedData = encryptData(defaultData, projectId);
+    const initialBlob = createInitialBlob(defaultData);
+    const encryptedDataBlob = encryptBlob(initialBlob, projectId);
 
     logger.info("projects/temp", "Saving new temp project to database", { projectId });
 
     const project = await ProjectTemp.create({
       projectId,
       projectName: "Temporary Project",
-      commits: [
-        {
-          id: crypto.randomBytes(16).toString("hex"),
-          device: null,
-          committedAt: null,
-          data: encryptedData,
-        },
-      ],
+      dataBlob: encryptedDataBlob,
       tokenHash: tokenHash,
     });
 

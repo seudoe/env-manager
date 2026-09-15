@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";
 import ProjectTemp from "@/models/ProjectTemp";
-import { verifyToken, decryptData } from "@/lib/crypto";
+import { verifyToken, decryptData, decryptBlob } from "@/lib/crypto";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -49,11 +49,11 @@ export async function GET(request: NextRequest) {
     
     if (projectId.startsWith("envpt_")) {
       project = await ProjectTemp.findOne({ projectId }).select(
-        "data commits tokenHash"
+        "dataBlob tokenHash"
       );
     } else {
       project = await Project.findOne({ projectId }).select(
-        "data commits tokenHash"
+        "dataBlob tokenHash"
       );
     }
 
@@ -69,17 +69,22 @@ export async function GET(request: NextRequest) {
       return new NextResponse("Invalid credentials.", { status: 401 });
     }
 
-    const targetData = project.commits?.length > 0 ? project.commits[0].data : project.data;
-
-    if (!targetData) {
+    if (!project.dataBlob) {
       return new NextResponse("Project data is empty.", { status: 404 });
     }
 
-    logger.info("get-env", "Token verified, decrypting env data", { projectId, dataLength: targetData.length });
+    logger.info("get-env", "Token verified, decrypting env data", { projectId });
 
-    let decryptedData = targetData;
+    let decryptedData = "";
     try {
-      decryptedData = decryptData(targetData, projectId);
+      const blobObj = decryptBlob(project.dataBlob, projectId);
+      // get-env only returns the currently committed state (latest commit).
+      // blobObj.commits[0] is the latest commit (snapshot).
+      if (blobObj.commits && blobObj.commits.length > 0) {
+        decryptedData = blobObj.commits[0].data || "";
+      } else {
+        decryptedData = blobObj.workingCopy || "";
+      }
     } catch (e) {
       logger.error("get-env", "Failed to decrypt data", { projectId, error: (e as Error).message });
       return new NextResponse("Failed to decrypt data.", { status: 500 });
