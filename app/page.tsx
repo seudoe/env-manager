@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/ui/Modal";
 
-const LOGO_URL = "/logo.png";
+const LOGO_URL = "/logo-circle.png";
 
 const TYPEWRITER_PHRASES = [
   "under control.",

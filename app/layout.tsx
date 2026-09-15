@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   title: "Env Manager — Centralized Environment Variable Management",
   description:
     "Securely manage and sync environment variables across your team. One source of truth for your .env files.",
+  icons: {
+    icon: "/logo-rsqre.png",
+  },
 };
 
 export default function RootLayout({
@@ -16,7 +19,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    // suppressHydrationWarning silences the Dark Reader browser-extension
+    // attribute mismatch (data-darkreader-*) — this is the recommended fix.
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <body className="antialiased">
         <ToastProvider>{children}</ToastProvider>
       </body>
