@@ -55,6 +55,10 @@ export async function PUT(
     
     updateWorkingCopy(blobObj, data);
     
+    console.log("\n\n=== DEBUG UNCOMPRESSED BLOB (PUT) ===");
+    console.log(JSON.stringify(blobObj, null, 2));
+    console.log("=======================================\n\n");
+
     project.dataBlob = encryptBlob(blobObj, project.projectId);
     const newSize = JSON.stringify(blobObj).length;
     project.size = newSize;
@@ -108,9 +112,15 @@ export async function POST(
     }
     
     // Convert working copy to a commit
-    const newText = blobObj.workingCopy;
+    const newText = blobObj.workingCopy === "" && blobObj.commits?.length > 0 
+      ? (blobObj.commits[0].data || "") 
+      : blobObj.workingCopy;
     commitChanges(blobObj, newText, { device: deviceName, user: username });
     
+    console.log("\n\n=== DEBUG UNCOMPRESSED BLOB (POST) ===");
+    console.log(JSON.stringify(blobObj, null, 2));
+    console.log("========================================\n\n");
+
     project.dataBlob = encryptBlob(blobObj, project.projectId);
     const newSize = JSON.stringify(blobObj).length;
     project.size = newSize;

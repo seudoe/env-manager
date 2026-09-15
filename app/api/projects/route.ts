@@ -60,7 +60,10 @@ export async function GET() {
       try {
         if (p.dataBlob) {
           const blob = decryptBlob(p.dataBlob, p.projectId);
-          return countEnvVariables(blob.workingCopy || "");
+          const wc = blob.workingCopy === "" && blob.commits?.length > 0 
+            ? (blob.commits[0].data || "") 
+            : (blob.workingCopy || "");
+          return countEnvVariables(wc);
         } else if (p.data) {
           return countEnvVariables(decryptData(p.data, p.projectId));
         }

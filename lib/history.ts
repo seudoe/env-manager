@@ -21,9 +21,12 @@ export function buildHistory(blob: BlobState) {
   const reconstructed = [];
   
   // Index 0: working copy (uncommitted changes)
+  const isPristine = blob.workingCopy === "";
+  const wcText = isPristine && blob.commits?.length > 0 ? (blob.commits[0].data || "") : blob.workingCopy;
+
   reconstructed.push({
     id: blob.workingCopyId,
-    data: blob.workingCopy,
+    data: wcText,
     device: null,
     user: null,
     committedAt: null
@@ -85,7 +88,11 @@ export function commitChanges(blob: BlobState, newText: string, metadata: { devi
   const latestCommitText = blob.commits[0].data || "";
   
   // Reverse delta: Patch goes from NEW text back to OLD text
-  const patchStr = diff.createPatch("env", newText, latestCommitText);
+  // Use context: 0 to eliminate unchanged context lines, making patches tiny
+  const fullPatch = diff.createPatch("env", newText, latestCommitText, "", "", { context: 0 });
+  
+  // Strip the 4 lines of unified diff header (Index: env\n===\n---\n+++) to save even more space
+  const patchStr = fullPatch.split('\n').slice(4).join('\n');
   
   // Turn the old snapshot into a patch
   blob.commits[0] = {
@@ -104,7 +111,7 @@ export function commitChanges(blob: BlobState, newText: string, metadata: { devi
     committedAt: new Date().toISOString()
   });
   
-  blob.workingCopy = newText;
+  blob.workingCopy = ""; // Set to empty to avoid duplicating the snapshot
   blob.workingCopyId = randomUUID(); // Generate a new ID for the new working copy
   
   // Max 50 commits limit
@@ -116,7 +123,11 @@ export function commitChanges(blob: BlobState, newText: string, metadata: { devi
 }
 
 export function updateWorkingCopy(blob: BlobState, newText: string): BlobState {
-  blob.workingCopy = newText;
+  if (blob.commits && blob.commits.length > 0 && blob.commits[0].data === newText) {
+    blob.workingCopy = ""; // Save space
+  } else {
+    blob.workingCopy = newText;
+  }
   return blob;
 }
 
