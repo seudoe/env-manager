@@ -47,6 +47,7 @@ ENV_MANAGER_TOKEN=${token}
     // the plaintext token to be able to decrypt later.
     const initialBlob = createInitialBlob(defaultData);
     const encryptedDataBlob = encryptBlob(initialBlob, projectId);
+    const uncompressedSize = JSON.stringify(initialBlob).length;
 
     logger.info("projects/temp", "Saving new temp project to database", { projectId });
 
@@ -54,6 +55,7 @@ ENV_MANAGER_TOKEN=${token}
       projectId,
       projectName: "Temporary Project",
       dataBlob: encryptedDataBlob,
+      size: uncompressedSize,
       tokenHash: tokenHash,
     });
 

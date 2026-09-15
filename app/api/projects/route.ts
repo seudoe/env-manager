@@ -39,14 +39,14 @@ export async function GET() {
 
     logger.info("projects", "Fetching owned projects", { userId: session.userId });
     const ownedProjects = await Project.find({ ownerId: session.userId })
-      .select("projectId projectName ownerId ownerUsername updatedAt dataBlob data contributors")
+      .select("projectId projectName ownerId ownerUsername updatedAt dataBlob data size contributors")
       .sort({ updatedAt: -1 });
 
     logger.info("projects", "Fetching contributed projects", { userId: session.userId });
     const contributedProjects = await Project.find({
       "contributors.userId": session.userId,
     })
-      .select("projectId projectName ownerId ownerUsername contributors updatedAt dataBlob data")
+      .select("projectId projectName ownerId ownerUsername contributors updatedAt dataBlob data size")
       .sort({ updatedAt: -1 });
 
     // Dashboard stat cards previously showed projects.length * 12 and
@@ -70,6 +70,21 @@ export async function GET() {
       return 0;
     };
 
+    const getSize = (p: any): number => {
+      if (p.size) return p.size;
+      try {
+        if (p.dataBlob) {
+          const blob = decryptBlob(p.dataBlob, p.projectId);
+          return JSON.stringify(blob).length;
+        } else if (p.data) {
+          return p.data.length; // legacy
+        }
+      } catch {
+        return 0;
+      }
+      return 0;
+    };
+
     const owned = ownedProjects.map((p) => ({
       projectId: p.projectId,
       projectName: p.projectName,
@@ -77,6 +92,7 @@ export async function GET() {
       ownerUsername: p.ownerUsername,
       updatedAt: p.updatedAt,
       variableCount: variableCountFor(p),
+      size: getSize(p),
     }));
 
     const contributed = contributedProjects.map((p) => {
@@ -90,6 +106,7 @@ export async function GET() {
         ownerUsername: p.ownerUsername,
         updatedAt: p.updatedAt,
         variableCount: variableCountFor(p),
+        size: getSize(p),
       };
     });
 
@@ -169,12 +186,14 @@ ENV_MANAGER_TOKEN=${token}
     // to be persisted in plaintext to decrypt this project's data later.
     const initialBlob = createInitialBlob(defaultEnv);
     const encryptedDataBlob = encryptBlob(initialBlob, projectId);
+    const uncompressedSize = JSON.stringify(initialBlob).length;
 
     logger.info("projects", "Creating project in database", { projectId, projectName: projectName.trim(), ownerId: session.userId });
     const project = await Project.create({
       projectId,
       projectName: projectName.trim(),
       dataBlob: encryptedDataBlob,
+      size: uncompressedSize,
       tokenHash: tokenHashed,
       ownerId: session.userId,
       ownerUsername: session.username,

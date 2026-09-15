@@ -11,6 +11,7 @@ interface ProjectItem {
   projectName: string;
   role: string;
   ownerUsername: string;
+  size?: number;
   updatedAt: string;
 }
 
@@ -183,7 +184,13 @@ export default function DashboardPage() {
                 <h3 className="text-sm font-semibold text-text-primary mb-0.5 truncate">{p.projectName}</h3>
                 <p className="text-[11px] text-text-muted font-mono truncate mb-2">{p.projectId}</p>
                 {p.role !== "owner" && <p className="text-[11px] text-text-muted">by {p.ownerUsername}</p>}
-                <p className="text-[11px] text-text-muted font-mono mt-1">Updated {formatDate(p.updatedAt)}</p>
+                
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[11px] text-text-muted font-mono">Updated {formatDate(p.updatedAt)}</p>
+                  {p.size !== undefined && (
+                    <span className="text-[11px] text-text-muted font-mono font-medium">[{p.size < 1024 ? `${p.size}B` : `${(p.size / 1024).toFixed(1)}KB`}]</span>
+                  )}
+                </div>
               </button>
             ))}
           </div>

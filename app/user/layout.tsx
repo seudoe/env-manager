@@ -7,8 +7,8 @@ import { useToast } from "@/components/ui/Toast";
 
 interface UserContextType {
   user: { id: string; username: string } | null;
-  currentProject: { projectId: string; projectName: string } | null;
-  setCurrentProject: (project: { projectId: string; projectName: string } | null) => void;
+  currentProject: { projectId: string; projectName: string; size?: number } | null;
+  setCurrentProject: (project: { projectId: string; projectName: string; size?: number } | null) => void;
   logout: () => Promise<void>;
 }
 
@@ -25,7 +25,7 @@ const LOGO_URL = APP_LOGO;
 
 export default function UserLayout({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ id: string; username: string } | null>(null);
-  const [currentProject, setCurrentProject] = useState<{ projectId: string; projectName: string } | null>(null);
+  const [currentProject, setCurrentProject] = useState<{ projectId: string; projectName: string; size?: number } | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
     if (match && (!currentProject || currentProject.projectId !== match[1])) {
       fetch(`/api/projects/${match[1]}`)
         .then((r) => r.json())
-        .then((d) => { if (d.project) setCurrentProject({ projectId: d.project.projectId, projectName: d.project.projectName }); })
+        .then((d) => { if (d.project) setCurrentProject({ projectId: d.project.projectId, projectName: d.project.projectName, size: d.project.size }); })
         .catch(() => {});
     }
   }, [pathname, currentProject]);
@@ -66,6 +66,7 @@ export default function UserLayout({ children }: { children: ReactNode }) {
       ? [{
           href: `/user/project/${currentProject.projectId}`,
           label: currentProject.projectName,
+          size: currentProject.size,
           icon: "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z",
         }]
       : []),
@@ -130,6 +131,12 @@ export default function UserLayout({ children }: { children: ReactNode }) {
                       <path d={item.icon} />
                     </svg>
                     <span className="truncate text-sm font-medium">{item.label}</span>
+                    {/* @ts-ignore - size is optionally added to the project item */}
+                    {item.size !== undefined && (
+                      <span className="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded-[4px] bg-bg-active text-text-muted">
+                        [{item.size < 1024 ? `${item.size}B` : `${(item.size / 1024).toFixed(1)}KB`}]
+                      </span>
+                    )}
                   </Link>
                 );
               })}

@@ -37,6 +37,7 @@ export default function TempProjectFilePage({
   const [refreshing, setRefreshing] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [commits, setCommits] = useState<any[]>([]);
+  const [size, setSize] = useState<number | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<any | null>(null);
   const [commitId, setCommitId] = useState<string | null>(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
@@ -107,6 +108,7 @@ export default function TempProjectFilePage({
           setProjectName(result.project.projectName);
           setCommitId(result.project.commitId || null);
           setCommits(result.project.commits || []);
+          if (result.project.size) setSize(result.project.size);
           if (result.project.updatedAt) {
             setLastSaved(result.project.updatedAt);
           }
@@ -138,6 +140,7 @@ export default function TempProjectFilePage({
       if (!res.ok) { addToast(result.error || "Failed to save.", "error"); return; }
       setOriginalData(data);
       setLastSaved(result.updatedAt);
+      if (result.size) setSize(result.size);
       addToast("Environment saved.", "success");
     } catch {
       addToast("Something went wrong.", "error");
@@ -165,6 +168,7 @@ export default function TempProjectFilePage({
         setOriginalData(result.project.data || "");
         setCommitId(result.project.commitId || null);
         setCommits(result.project.commits || []);
+        if (result.project.size) setSize(result.project.size);
         if (result.project.updatedAt) setLastSaved(result.project.updatedAt);
       }
     } catch {
@@ -201,9 +205,13 @@ export default function TempProjectFilePage({
         return;
       }
 
-      if (!res.ok) { addToast(result.error || "Failed to commit.", "error"); return; }
-      
+      if (!res.ok) {
+        addToast(result.error || "Failed to commit.", "error");
+        return;
+      }
+
       setCommitId(result.newCommitId);
+      if (result.size) setSize(result.size);
       
       // Refresh commits list silently
       const refreshRes = await fetch(`/api/projects/${projectId}`, {
@@ -333,6 +341,11 @@ export default function TempProjectFilePage({
             <span className="px-1.5 py-0.5 text-[10px] font-semibold tracking-widest uppercase rounded-[4px] border bg-[rgba(34,197,94,0.08)] text-success border-[rgba(34,197,94,0.2)]">
               Editor
             </span>
+            {size !== null && (
+              <span className="px-2 py-0.5 text-[11px] font-mono text-text-muted bg-bg-tertiary border border-border-subtle rounded-[4px]">
+                [{size < 1024 ? `${size}B` : `${(size / 1024).toFixed(1)}KB`}]
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

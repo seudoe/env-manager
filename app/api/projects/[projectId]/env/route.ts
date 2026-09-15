@@ -54,10 +54,13 @@ export async function PUT(
     }
     
     updateWorkingCopy(blobObj, data);
+    
     project.dataBlob = encryptBlob(blobObj, project.projectId);
+    const newSize = JSON.stringify(blobObj).length;
+    project.size = newSize;
     await project.save();
     
-    return NextResponse.json({ success: true, updatedAt: project.updatedAt });
+    return NextResponse.json({ success: true, updatedAt: project.updatedAt, size: newSize });
   } catch (error) {
     logger.error("projects/[id]/env", "Failed to update env", { projectId, error: (error as Error).message });
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
@@ -109,9 +112,11 @@ export async function POST(
     commitChanges(blobObj, newText, { device: deviceName, user: username });
     
     project.dataBlob = encryptBlob(blobObj, project.projectId);
+    const newSize = JSON.stringify(blobObj).length;
+    project.size = newSize;
     await project.save();
 
-    return NextResponse.json({ success: true, newCommitId: blobObj.workingCopyId });
+    return NextResponse.json({ success: true, newCommitId: blobObj.workingCopyId, size: newSize });
   } catch (error) {
     logger.error("projects/[id]/env", "Failed to commit env", { projectId, error: (error as Error).message });
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

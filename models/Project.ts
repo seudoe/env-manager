@@ -11,6 +11,7 @@ export interface IProject extends Document {
   projectId: string;
   projectName: string;
   dataBlob: string;
+  size?: number;
   tokenHash: string;
   ownerId: string;
   ownerUsername: string;
@@ -33,6 +34,7 @@ const ProjectSchema = new Schema<IProject>(
     projectId: { type: String, required: true, unique: true, index: true },
     projectName: { type: String, required: true, trim: true, minlength: 1, maxlength: 100 },
     dataBlob: { type: String, required: true },
+    size: { type: Number, default: 0 },
     tokenHash: { type: String, required: true },
     ownerId: { type: String, required: true, index: true },
     ownerUsername: { type: String, required: true },

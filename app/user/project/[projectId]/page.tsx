@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useRef } from "react";
 import { useToast } from "@/components/ui/Toast";
 import { APP_LOGO } from "@/lib/config";
+import { useUser } from "../../layout";
 
 interface ConflictProjectSnapshot {
   data?: string;
@@ -26,7 +27,9 @@ export default function ProjectFilePage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = use(params);
+  const { setCurrentProject } = useUser();
   const [data, setData] = useState("");
+  const [size, setSize] = useState<number | null>(null);
   const [originalData, setOriginalData] = useState("");
   const [role, setRole] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
@@ -85,6 +88,9 @@ export default function ProjectFilePage({
           setProjectName(result.project.projectName);
           setCommitId(result.project.commitId || null);
           setCommits(result.project.commits || []);
+          if (result.project.size !== undefined) {
+            setSize(result.project.size);
+          }
           if (result.project.updatedAt) {
             setLastSaved(result.project.updatedAt);
           }
@@ -113,6 +119,10 @@ export default function ProjectFilePage({
       if (!res.ok) { addToast(result.error || "Failed to save.", "error"); return; }
       setOriginalData(data);
       setLastSaved(result.updatedAt);
+      if (result.size) {
+        setSize(result.size);
+        setCurrentProject({ projectId, projectName, size: result.size });
+      }
       addToast("Environment saved.", "success");
     } catch {
       addToast("Something went wrong.", "error");
@@ -138,6 +148,10 @@ export default function ProjectFilePage({
         setOriginalData(result.project.data || "");
         setCommitId(result.project.commitId || null);
         setCommits(result.project.commits || []);
+        if (result.project.size !== undefined) {
+          setSize(result.project.size);
+          setCurrentProject({ projectId, projectName: result.project.projectName, size: result.project.size });
+        }
         if (result.project.updatedAt) setLastSaved(result.project.updatedAt);
       }
     } catch {
@@ -171,9 +185,16 @@ export default function ProjectFilePage({
         return;
       }
 
-      if (!res.ok) { addToast(result.error || "Failed to commit.", "error"); return; }
-      
+      if (!res.ok) {
+        addToast(result.error || "Failed to commit.", "error");
+        return;
+      }
+
       setCommitId(result.newCommitId);
+      if (result.size) {
+        setSize(result.size);
+        setCurrentProject({ projectId, projectName, size: result.size });
+      }
       
       // Refresh commits list silently
       const refreshRes = await fetch(`/api/projects/${projectId}`);
@@ -254,6 +275,11 @@ export default function ProjectFilePage({
           {role && (
             <span className={`px-1.5 py-0.5 text-[10px] font-semibold tracking-widest uppercase rounded-[4px] border ${roleBadge(role)}`}>
               {role}
+            </span>
+          )}
+          {size !== null && (
+            <span className="px-2 py-0.5 text-[11px] font-mono text-text-muted bg-bg-tertiary border border-border-subtle rounded-[4px]">
+              [{size < 1024 ? `${size}B` : `${(size / 1024).toFixed(1)}KB`}]
             </span>
           )}
         </div>

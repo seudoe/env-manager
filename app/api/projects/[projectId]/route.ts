@@ -34,6 +34,7 @@ export async function GET(
 
       const blobObj = decryptBlob(project.dataBlob, project.projectId);
       const commits = buildHistory(blobObj);
+      const size = project.size || JSON.stringify(blobObj).length;
 
       return NextResponse.json({ 
         project: {
@@ -42,6 +43,7 @@ export async function GET(
           data: commits[0].data,
           commitId: commits[0].id,
           commits: commits,
+          size,
           role: "editor",
           updatedAt: project.updatedAt,
         }
@@ -68,6 +70,7 @@ export async function GET(
 
     const blobObj = decryptBlob(project.dataBlob, project.projectId);
     const commits = buildHistory(blobObj);
+    const size = project.size || JSON.stringify(blobObj).length;
 
     // Viewers have read-only access by design, but the env content often
     // contains this project's own ENV_MANAGER_TOKEN line — which, unlike
@@ -93,6 +96,7 @@ export async function GET(
       commits: visibleCommits,
       ownerUsername: project.ownerUsername,
       role: perm.role,
+      size,
       updatedAt: project.updatedAt,
     };
 
