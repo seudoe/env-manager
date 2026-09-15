@@ -65,12 +65,18 @@ export default function RegisterPage() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-bg-primary px-4">
       <div className="w-full max-w-[360px]">
+        <Link href="/" className="inline-flex items-center gap-2 text-xs font-medium text-text-muted hover:text-text-primary transition-colors mb-8 -ml-2 px-2 py-1 rounded hover:bg-bg-secondary">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to Home
+        </Link>
         {/* Logo + header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center mb-6">
+          <div className="inline-flex items-center justify-center mb-6">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Env Manager" width={36} height={36} className="rounded-[8px]" />
-          </Link>
+            <img src="/logo-rsqre.png" alt="Env Manager" width={36} height={36} className="rounded-[8px]" />
+          </div>
           <h1 className="text-xl font-semibold text-text-primary tracking-tight">Create an account</h1>
           <p className="text-sm text-text-secondary mt-1">Get started with Env Manager</p>
         </div>
