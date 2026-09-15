@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/Toast";
 import CopyButton from "@/components/ui/CopyButton";
@@ -46,6 +46,9 @@ export default function TempProjectFilePage({
   const [conflictLatestProject, setConflictLatestProject] = useState<ConflictProjectSnapshot | null>(null);
   const [loadingConflictPreview, setLoadingConflictPreview] = useState(false);
   const { addToast } = useToast();
+  
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
 
   const openConflictModal = async (latestCommitId: string) => {
     setConflictLatestId(latestCommitId);
@@ -371,7 +374,7 @@ export default function TempProjectFilePage({
         )}
 
         {/* Editor chrome */}
-        <div className="border border-border-default rounded-[8px] overflow-hidden">
+        <div className="border border-border-default rounded-[8px] overflow-hidden focus-within:border-accent-primary focus-within:ring-1 focus-within:ring-[rgba(0,194,255,0.15)] transition-all">
           <div className="flex items-center gap-2 px-4 py-2.5 bg-bg-secondary border-b border-border-subtle">
             <div className="flex gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-danger/40" />
@@ -380,18 +383,34 @@ export default function TempProjectFilePage({
             </div>
             <span className="text-[11px] text-text-muted font-mono ml-2">.env</span>
           </div>
-          <textarea
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-            spellCheck={false}
-            className="env-editor !rounded-none !border-0 !border-t-0"
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-                e.preventDefault();
-                if (hasChanges) handleSave();
-              }
-            }}
-          />
+          <div className="flex relative bg-bg-primary">
+            {/* Line Numbers */}
+            <div 
+              ref={lineNumbersRef}
+              className="w-12 shrink-0 py-4 pr-3 text-right text-text-muted font-mono select-none overflow-hidden bg-[rgba(255,255,255,0.02)] border-r border-border-default/50"
+              style={{ fontSize: "0.8125rem", lineHeight: 1.75 }}
+            >
+              {Array.from({ length: Math.max(1, data.split("\n").length) }).map((_, i) => (
+                <div key={i}>{i + 1}</div>
+              ))}
+            </div>
+            {/* Textarea */}
+            <textarea
+              ref={editorRef}
+              onScroll={(e) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = e.currentTarget.scrollTop; }}
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+              spellCheck={false}
+              className="env-editor flex-1 !border-0 !rounded-none !shadow-none !ring-0"
+              style={{ minHeight: "420px" }}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+                  e.preventDefault();
+                  if (hasChanges) handleSave();
+                }
+              }}
+            />
+          </div>
         </div>
 
         {/* Commits List */}
